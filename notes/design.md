@@ -4,7 +4,7 @@ Status: agreed requirements and proposed implementation, recorded 2026-09-18.
 These are the initial design notes for the public `jevselector` repository.
 The benchmark architecture and implementation sequence live in
 [jevhammer_benchmark](https://github.com/adamtopaz/jevhammer_benchmark/tree/main/notes).
-No selector implementation or prepared artifacts are supplied yet.
+The initial statement-symbol index, preparation CLI, and standard-selector adapter are now implemented. No pretrained production artifact or performance-parity claim is supplied.
 
 ## Objective and boundary
 

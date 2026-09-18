@@ -1,0 +1,20 @@
+name: CI
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  offline:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install Lean
+        run: curl -sSf https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh | sh -s -- -y --default-toolchain none
+      - name: Test in a bounded process tree
+        run: |
+          export PATH="$HOME/.elan/bin:$PATH"
+          sudo systemd-run --scope -p MemoryMax=12000000000 -p MemorySwapMax=0 --uid="$(id -u)" --gid="$(id -g)" --setenv=PATH="$PATH" bash tests/run.sh
+      - run: python -m pip install .
+      - run: jevselector --help

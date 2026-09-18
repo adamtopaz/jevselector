@@ -1,0 +1,14 @@
+name = "jevselector"
+version = "0.1.0"
+defaultTargets = ["JevSelector"]
+testDriver = "JevSelectorTests"
+
+[[lean_lib]]
+name = "JevSelector"
+
+[[lean_lib]]
+name = "JevSelectorTests"
+
+[[lean_lib]]
+name = "SelectorFixture"
+srcDir = "tests/fixtures"

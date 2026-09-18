@@ -5,3 +5,8 @@
 /artifacts/
 /cache/
 /runs/
+
+__pycache__/
+*.egg-info/
+build/
+dist/
