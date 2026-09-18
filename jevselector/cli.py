@@ -72,6 +72,20 @@ def fit(corpus, holdout=None):
                         for s, count in sorted(df.items())]}
 
 
+def package_directory(project, manifest, package):
+    if package["type"] == "path":
+        root = project / package["dir"]
+    else:
+        # Lake's manifest prints quoted Lean identifiers, but checkout names
+        # omit the quoting (e.g. «premise-selection» -> premise-selection).
+        directory = package["name"].replace("«", "").replace("»", "")
+        root = project / manifest.get("packagesDir", ".lake/packages") / directory
+    root = root / (package.get("subDir") or "")
+    if not root.is_dir():
+        raise ValueError(f"missing dependency source directory: {root}; run lake update")
+    return root
+
+
 def source_snapshot(project):
     files = {}
     for directory, dirs, names in os.walk(project):
@@ -88,8 +102,7 @@ def source_snapshot(project):
     # Git revisions alone do not describe dirty dependency sources.
     dependencies = {}
     for package in manifest["packages"]:
-        root = project / (package["dir"] if package["type"] == "path" else
-                          str(Path(manifest.get("packagesDir", ".lake/packages")) / package["name"]))
+        root = package_directory(project, manifest, package)
         hashes = {}
         for path in sorted(root.rglob("*.lean")):
             relative = path.relative_to(root)

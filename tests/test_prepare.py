@@ -1,4 +1,7 @@
 import unittest
+import tempfile
+from pathlib import Path
+from jevselector.cli import package_directory
 from jevselector.cli import fit
 
 
@@ -26,6 +29,15 @@ class Preparation(unittest.TestCase):
         artifact = fit(corpus(), {"schema": 1, "modules": ["Example"]})
         self.assertEqual(artifact["eligible"], [])
         self.assertEqual(artifact["weights"], [])
+
+    def test_quoted_package_directory(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            package = root / ".lake/packages/premise-selection/nested"
+            package.mkdir(parents=True)
+            self.assertEqual(package_directory(root, {}, {"type": "git", "name": "«premise-selection»", "subDir": "nested"}), package)
+            with self.assertRaises(ValueError):
+                package_directory(root, {}, {"type": "git", "name": "missing"})
 
     def test_stale(self):
         for key in ["declarations", "modules"]:
