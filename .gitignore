@@ -1,0 +1,7 @@
+.lake/
+.env
+.env.*
+!.env.example
+/artifacts/
+/cache/
+/runs/
