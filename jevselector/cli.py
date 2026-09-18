@@ -208,7 +208,7 @@ def profile(args):
     config = output / "config.json"
     write_json(config, {"index": str(args.index.absolute()), "output": str(output / "queries.json"),
                         "samples": args.samples, "repeats": args.repeats})
-    env = dict(os.environ, JEVSELECTOR_PROFILE_CONFIG=str(config))
+    env = dict(os.environ, JEVSELECTOR_PROFILE_CONFIG=str(config), JEVSELECTOR_TRACE_LOAD="1")
     process(["lake", "env", "lean", f"-j{args.threads}", "-M0", "-DmaxHeartbeats=0",
              str(output / "Profile.lean")], project, output / "profile.log", env, args.timeout)
     report = json.loads((output / "queries.json").read_text())

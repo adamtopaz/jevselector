@@ -17,6 +17,7 @@ elab "#jevselector_profile" : command => do
   let start ← IO.monoMsNow
   let idx ← load indexPath
   let loadMs := (← IO.monoMsNow) - start
+  IO.eprintln s!"JevSelector index loaded in {loadMs}ms"
   let timings ← liftTermElabM do
     idx.validateEnvironment
     let mut rows := #[]
@@ -31,8 +32,10 @@ elab "#jevselector_profile" : command => do
           let goal ← mkFreshExprMVar info.type
           let start ← IO.monoNanosNow
           let result ← idx.selector {} goal.mvarId! { filter := fun n => pure (n != name) }
+          let elapsed := (← IO.monoNanosNow) - start
           rows := rows.push <| Json.mkObj [("name", toJson e.name),
-            ("elapsedNanos", toJson ((← IO.monoNanosNow) - start)), ("returned", toJson result.size)]
+            ("elapsedNanos", toJson elapsed), ("returned", toJson result.size)]
+          IO.eprintln s!"Profile {e.name}: {elapsed / 1000000}ms"
         finally saved.restore
     return rows
   IO.FS.writeFile output <| (Json.mkObj [("schema", toJson (1 : Nat)),

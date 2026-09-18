@@ -27,7 +27,12 @@ structure Index where
 
 /-- Loading is separate from querying so clients can account for cold-start cost. -/
 def load (path : System.FilePath) : IO Index := do
-  let artifact : Artifact ← IO.ofExcept (Json.parse (← IO.FS.readFile path) >>= fromJson?)
+  let verbose := (← IO.getEnv "JEVSELECTOR_TRACE_LOAD") == some "1"
+  let progress := fun (message : String) => if verbose then IO.eprintln s!"JevSelector: {message}" else pure ()
+  let json ← IO.ofExcept (Json.parse (← IO.FS.readFile path))
+  progress "parsed artifact JSON"
+  let artifact : Artifact ← IO.ofExcept (fromJson? json)
+  progress s!"decoded {artifact.declarations.size} statements"
   unless artifact.schema == 1 && artifact.leanVersion == Lean.versionString do
     throw <| IO.userError "JevSelector: incompatible artifact schema or Lean version"
   -- Prepend to lists while building: repeatedly appending to shared arrays
@@ -36,6 +41,7 @@ def load (path : System.FilePath) : IO Index := do
   let mut weights := {}
   let mut seen : Std.HashSet String := {}
   for (e, i) in artifact.declarations.zipIdx do
+    if verbose && i % 50000 == 0 then progress s!"indexing statement {i}"
     if seen.contains e.name then throw <| IO.userError "JevSelector: duplicate declaration"
     seen := seen.insert e.name
     for s in e.symbols do
@@ -58,9 +64,11 @@ def load (path : System.FilePath) : IO Index := do
   for name in seen do
     unless eligible.contains name || excluded.contains name do
       throw <| IO.userError "JevSelector: catalog entry lacks training eligibility"
+  progress "validated training eligibility"
   let mut postings := {}
   for (symbol, reversed) in lists do
     postings := postings.insert symbol reversed.reverse.toArray
+  progress "postings ready"
   return { artifact, postings, weights, trainingOwners }
 
 /-- Validate all available catalog statements during goal-independent warmup.
@@ -109,27 +117,34 @@ def Index.selector (idx : Index) (options : QueryConfig := {}) : Selector := fun
       let i := postings[j * postings.size / count]!
       scores := scores.insert i (scores.getD i 0 + idx.weights.getD symbol 1)
   let env ← getEnv
-  let mut candidates : Array (Name × Float) := #[]
-  let mut used : Std.HashSet Name := {}
+  -- Rank using artifact data first. Running MetaM filters on every posting is
+  -- unnecessary: scan the ranked list until enough available premises pass.
+  let mut candidates : Array (String × Float × Nat) := #[]
+  let mut used : Std.HashSet String := {}
   for (i, score) in scores do
     let e := idx.artifact.declarations[i]!
-    let name := e.name.toName
-    let some info := env.find? name | continue
-    if isDeniedPremise env name || !(← cfg.filter name) then continue
-    unless (hash info.type).toNat == e.typeHash do
-      throwError "JevSelector: statement changed for {name}; prepare a new artifact"
-    used := used.insert name
-    candidates := candidates.push (name, score / Float.sqrt (max 1 e.symbols.size).toFloat)
+    used := used.insert e.name
+    candidates := candidates.push (e.name,
+      score / Float.sqrt (max 1 e.symbols.size).toFloat, e.typeHash)
   if options.includeCurrentFile then
     for (name, info) in env.constants.map₂ do
-      if used.contains name || isDeniedPremise env name || !wasOriginallyTheorem env name then continue
-      unless ← cfg.filter name do continue
+      if used.contains name.toString || !wasOriginallyTheorem env name then continue
       let features := symbols info.type
       let score := query.foldl (fun acc s =>
         if features.contains s then acc + idx.weights.getD s 1 else acc) 0
-      candidates := candidates.push (name, score / Float.sqrt (max 1 features.size).toFloat)
-  candidates := candidates.qsort fun a b => if a.2 == b.2 then a.1.toString < b.1.toString else a.2 > b.2
-  return candidates[:cfg.maxSuggestions].toArray.map fun (name, score) =>
-    { name, score := score / (score + 1) }
+      candidates := candidates.push (name.toString,
+        score / Float.sqrt (max 1 features.size).toFloat, (hash info.type).toNat)
+  candidates := candidates.qsort fun a b =>
+    if a.2.1 == b.2.1 then a.1 < b.1 else a.2.1 > b.2.1
+  let mut result := #[]
+  for (text, score, typeHash) in candidates do
+    if result.size >= cfg.maxSuggestions then break
+    let name := text.toName
+    let some info := env.find? name | continue
+    if isDeniedPremise env name || !(← cfg.filter name) then continue
+    unless (hash info.type).toNat == typeHash do
+      throwError "JevSelector: statement changed for {name}; prepare a new artifact"
+    result := result.push { name, score := score / (score + 1) }
+  return result
 
 end JevSelector

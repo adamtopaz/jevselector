@@ -19,6 +19,11 @@ run_cmd liftTermElabM do
     filter := fun n => pure (n == `SelectorFixture.held) }
   unless result.map (·.name) == #[`SelectorFixture.held] do
     throwError "held-out statement should remain retrievable and the caller filter must hold"
+  let lowerRanked ← idx.selector {} g.mvarId! {
+    maxSuggestions := 1
+    filter := fun n => pure (n == `SelectorFixture.later) }
+  unless lowerRanked.map (·.name) == #[`SelectorFixture.later] do
+    throwError "selector truncated before applying the caller filter"
   let none ← idx.selector {} g.mvarId! { maxSuggestions := 0 }
   unless none.isEmpty do throwError "zero maximum ignored"
   let futureEntries := idx.artifact.declarations.map fun e => { e with name := "Unavailable.future" }
