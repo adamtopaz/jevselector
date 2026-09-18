@@ -3,7 +3,7 @@ set -euo pipefail
 # Put this script in a bounded container/job, or a systemd scope on Linux.
 python -m unittest discover -s tests -v
 scratch=$(mktemp -d)
-trap 'rm -rf "$scratch"' EXIT
+trap 'status=$?; if [ "$status" -eq 0 ]; then rm -rf "$scratch"; else echo "Test evidence retained: $scratch" >&2; fi' EXIT
 python -m jevselector prepare --modules SelectorFixture --exclude tests/holdout.json --output "$scratch/prepared" "$@"
 python -m jevselector verify "$scratch/prepared"
 JEVSELECTOR_TEST_INDEX="$scratch/prepared/index.json" lake env lean JevSelectorTests.lean

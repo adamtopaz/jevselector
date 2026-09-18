@@ -32,3 +32,14 @@ run_cmd liftTermElabM do
     pure false
   catch _ => pure true
   unless rejected do throwError "changed theorem statement was accepted"
+
+
+theorem freshlyDeclared (n : Nat) : n = n := rfl
+
+run_cmd liftTermElabM do
+  let some path ← IO.getEnv "JEVSELECTOR_TEST_INDEX" | throwError "missing test artifact"
+  let idx ← load path
+  let goal ← mkFreshExprMVar (← inferType (mkConst ``freshlyDeclared))
+  let result ← idx.selector {} goal.mvarId! { filter := fun n => pure (n == ``freshlyDeclared) }
+  unless result.map (·.name) == #[``freshlyDeclared] do
+    throwError "current-file supplementation failed"

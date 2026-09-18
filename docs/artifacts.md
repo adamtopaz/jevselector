@@ -44,3 +44,7 @@ load or query the index. Do not distribute credentials in project manifests.
 The initial version has no learned proof-frequency statistics, graph traversal,
 Jev reranking, query result cache, or binary/memory-mapped index. These are future
 experiments; compare end-to-end verified proof coverage, not only retrieval recall.
+
+Preparation/profile Lean processes rely on the aggregate cgroup/job limit.
+A separate Lean allocator limit is disabled because memory-mapped whole-library
+imports can exceed it even when resident memory is small.

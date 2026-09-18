@@ -23,13 +23,16 @@ structure Index where
   artifact : Artifact
   postings : Std.HashMap Name (Array Nat)
   weights : Std.HashMap Name Float
+  trainingOwners : Std.HashSet String
 
 /-- Loading is separate from querying so clients can account for cold-start cost. -/
 def load (path : System.FilePath) : IO Index := do
   let artifact : Artifact ← IO.ofExcept (Json.parse (← IO.FS.readFile path) >>= fromJson?)
   unless artifact.schema == 1 && artifact.leanVersion == Lean.versionString do
     throw <| IO.userError "JevSelector: incompatible artifact schema or Lean version"
-  let mut postings := {}
+  -- Prepend to lists while building: repeatedly appending to shared arrays
+  -- would copy very common-symbol postings quadratically.
+  let mut lists : Std.HashMap Name (List Nat) := {}
   let mut weights := {}
   let mut seen : Std.HashSet String := {}
   for (e, i) in artifact.declarations.zipIdx do
@@ -37,20 +40,28 @@ def load (path : System.FilePath) : IO Index := do
     seen := seen.insert e.name
     for s in e.symbols do
       let s := s.toName
-      postings := postings.insert s ((postings.getD s #[]).push i)
+      lists := lists.insert s (i :: lists.getD s [])
   for w in artifact.weights do
     unless w.weight > 0 && w.weight < 1000000 do
       throw <| IO.userError "JevSelector: invalid symbol weight"
     weights := weights.insert w.symbol.toName w.weight
   let excluded : Std.HashSet String := .ofArray artifact.excluded
+  let mut trainingOwners : Std.HashSet String := {}
   for name in artifact.eligible do
+    let mut ownerPrefix := ""
+    for part in name.splitOn "." do
+      ownerPrefix := if ownerPrefix.isEmpty then part else ownerPrefix ++ "." ++ part
+      trainingOwners := trainingOwners.insert ownerPrefix
     unless seen.contains name && !excluded.contains name do
       throw <| IO.userError "JevSelector: invalid training eligibility"
   let eligible : Std.HashSet String := .ofArray artifact.eligible
   for name in seen do
     unless eligible.contains name || excluded.contains name do
       throw <| IO.userError "JevSelector: catalog entry lacks training eligibility"
-  return { artifact, postings, weights }
+  let mut postings := {}
+  for (symbol, reversed) in lists do
+    postings := postings.insert symbol reversed.reverse.toArray
+  return { artifact, postings, weights, trainingOwners }
 
 /-- Validate all available catalog statements during goal-independent warmup.
 Unavailable statements are allowed: an artifact can cover more than a source goal's imports. -/
@@ -64,11 +75,9 @@ def Index.validateEnvironment (idx : Index) : MetaM Unit := do
 /-- Reject evaluation on declarations contributing to fitted statistics.
 Absent declarations were outside preparation; they need no exclusion. -/
 def Index.validateHoldouts (idx : Index) (owners : Array Name) : IO Json := do
-  let eligible : Std.HashSet String := .ofArray idx.artifact.eligible
   for owner in owners do
-    for name in eligible do
-      if name == owner.toString || (owner.toString ++ ".").isPrefixOf name then
-        throw <| IO.userError s!"JevSelector: evaluation overlaps training: {owner} ({name})"
+    if idx.trainingOwners.contains owner.toString then
+      throw <| IO.userError s!"JevSelector: evaluation overlaps training: {owner}"
   return idx.artifact.provenance
 
 structure QueryConfig where

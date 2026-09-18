@@ -31,7 +31,9 @@ def name(value):
 
 
 def excluded_by(declaration, owners):
-    return any(declaration == owner or declaration.startswith(owner + ".") for owner in owners)
+    if declaration in owners:
+        return True
+    return any(declaration[:i] in owners for i, c in enumerate(declaration) if c == ".")
 
 
 def fit(corpus, holdout=None):
@@ -51,7 +53,7 @@ def fit(corpus, holdout=None):
     holdout = holdout or {"schema": 1, "declarations": [], "modules": []}
     if holdout.get("schema") != 1:
         raise ValueError("unsupported holdout schema")
-    owners = holdout.get("declarations", [])
+    owners = set(holdout.get("declarations", []))
     modules = holdout.get("modules", [])
     unknown = set(owners) - declarations.keys()
     unknown_modules = set(modules) - set(header["modules"])
@@ -76,7 +78,8 @@ def source_snapshot(project):
         directory = Path(directory)
         dirs[:] = sorted(d for d in dirs if d not in {
             ".lake", ".git", ".venv", "__pycache__", "artifacts", "cache", "runs"}
-            and not (directory / d / ".jevselector-output").exists())
+            and not any((directory / d / marker).exists() for marker in
+                        [".jevselector-output", ".jevbench-output"]))
         for item in sorted(names):
             path = directory / item
             if path.suffix == ".lean" or item in {"lakefile.toml", "lakefile.lean", "lake-manifest.json", "lean-toolchain"}:
@@ -118,6 +121,7 @@ def process(command, project, log, env=None, timeout=1800):
 def prepare(args):
     resources = ensure_bounded(args)
     start = time.monotonic()
+    code_hash = sha(Path(__file__).read_bytes())
     project, output = args.project.absolute(), args.output.absolute()
     output.mkdir(parents=True, exist_ok=False)
     (output / ".jevselector-output").touch()
@@ -135,7 +139,7 @@ def prepare(args):
         config = output / "export.json"
         write_json(config, {"output": str(output / "corpus.jsonl"), "scopes": scopes})
         env = dict(os.environ, JEVSELECTOR_EXPORT_CONFIG=str(config), LEAN_NUM_THREADS=str(args.threads))
-        process(["lake", "env", "lean", f"-j{args.threads}", "-M6000", "-DmaxHeartbeats=0",
+        process(["lake", "env", "lean", f"-j{args.threads}", "-M0", "-DmaxHeartbeats=0",
                  str(output / "Extract.lean")], project, output / "extract.log", env, args.timeout)
         extraction_seconds = time.monotonic() - start
         with (output / "corpus.jsonl").open() as handle:
@@ -146,7 +150,8 @@ def prepare(args):
                   "proofInformation": "none", "heldoutStatementStatistics": "excluded",
                   "statementCatalog": "retained; runtime availability and caller filter required"}
         source_hash = sha(json.dumps(snapshot, sort_keys=True).encode())
-        code_hash = sha(Path(__file__).read_bytes())
+        if sha(Path(__file__).read_bytes()) != code_hash:
+            raise RuntimeError("preparation code changed during extraction; retry from a fixed revision")
         identity = dict(recipe=recipe, sourceSha256=source_hash, preparationCodeSha256=code_hash,
                         holdoutSha256=sha(holdout_bytes) if holdout_bytes is not None else None)
         artifact["provenance"] = dict(identity, artifactId=sha(json.dumps(identity, sort_keys=True).encode()),
@@ -191,7 +196,7 @@ def profile(args):
     write_json(config, {"index": str(args.index.absolute()), "output": str(output / "queries.json"),
                         "samples": args.samples, "repeats": args.repeats})
     env = dict(os.environ, JEVSELECTOR_PROFILE_CONFIG=str(config))
-    process(["lake", "env", "lean", f"-j{args.threads}", "-M6000", "-DmaxHeartbeats=0",
+    process(["lake", "env", "lean", f"-j{args.threads}", "-M0", "-DmaxHeartbeats=0",
              str(output / "Profile.lean")], project, output / "profile.log", env, args.timeout)
     report = json.loads((output / "queries.json").read_text())
     timings = sorted(r["elapsedNanos"] / 1e6 for r in report["queries"])
