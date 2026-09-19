@@ -28,3 +28,20 @@ The historical local runtime had to be restored from the Nix binary cache before
 service startup. That failed startup produced no benchmark trials or Jev calls.
 The successful run's service and Lean processes shared the 16 GB bound; peak
 memory was 11.34 GB, with no cgroup limit or OOM events.
+
+## First candidate CPU profiles
+
+Selector revision `7192e21`, full-Mathlib artifact, 32 deterministic theorem-type
+queries repeated three times, two CPU threads, 16 GB zero-swap limit:
+
+| Method | Median | p95 |
+|---|---:|---:|
+| Sparse | 66.6 ms | 130.1 ms |
+| Target-weighted | 66.9 ms | 131.9 ms |
+| Rank fusion | 217.3 ms | 342.0 ms |
+
+The target-weighted candidate meets the provisional 200 ms p95 cost target.
+Fusion currently misses it; its coverage must justify further optimization.
+All methods reuse the existing preparation artifact, with no new training pass.
+Cold index loads were 3.8–4.3 seconds; the profile scope peaked at 6.64 GB with
+no memory limit/OOM events. These timings are not proof-coverage measurements.
