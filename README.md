@@ -17,6 +17,9 @@ The `research/cpu-selector` branch also contains experimental target-weighted
 retrieval and reciprocal-rank fusion. These are candidates under evaluation,
 not demonstrated improvements. See the [research protocol](notes/cpu-selector-research.md)
 and [first experiment](notes/experiment-01.md).
+To run the experimental commands below, pin both the Lake dependency and Python
+package to the same research commit (`git+https://github.com/adamtopaz/jevselector@COMMIT`
+for pip). The `main` installation example is for the released baseline.
 
 ## Install
 

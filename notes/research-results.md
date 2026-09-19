@@ -118,3 +118,25 @@ reusing these artifacts. Its formulation was recorded before testing it in
 `notes/experiment-04-design.md`; implementation validation is underway. Structural
 retrieval remains an independent planned ablation. The significant-improvement
 objective remains unfulfilled.
+
+## Experiment 04: usage-model cost, coverage pending
+
+The sparse usage model fits from the excluded statement and dependency artifacts
+in **14.08 s**, producing **145,736 profiles**, **4,971,407 feature corrections**,
+and a **251.89 MB** artifact. Fitting peaked at **4.54 GB**, without limit/OOM
+events. This is incremental cost; prior statement/dependency extraction is
+separate. No Jev call or neural component participates in fitting or querying.
+
+A full-library preflight found that reparsing printed hygienic feature names
+collapses some to the anonymous name. Commit `63c3d60` fixes both base sparse and
+usage feature keys to remain opaque text. Regression tests and the full suite
+pass. The failed preflight ran no queries or proofs; its evidence is retained.
+Existing artifact bytes remain unchanged, but matched references must be rerun
+under the corrected reader.
+
+On 32 deterministic theorem types × 3 repetitions, corrected usage retrieval
+takes **39.1 ms median / 74.1 ms p95**, versus **66.8 / 132.1 ms** for target-weighted
+retrieval. Combined usage/index cold loading is **20.71 s**, versus **2.66 s** for
+the target index alone. The profile scope peaked at **5.01 GB** with no memory
+events. Warm queries meet the provisional cost target, but cold loading remains
+an obvious deployment cost. These measurements establish no proof-coverage gain.
