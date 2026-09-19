@@ -5,6 +5,7 @@ testDriver = "JevSelectorTests"
 
 [[lean_lib]]
 name = "JevSelector"
+precompileModules = true
 
 [[lean_lib]]
 name = "JevSelectorTests"

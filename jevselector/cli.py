@@ -131,6 +131,24 @@ def process(command, project, log, env=None, timeout=1800):
         raise RuntimeError(f"Lean command failed ({code}); see {log}")
 
 
+def lean_file(project, source, log, env=None, timeout=1800, options=(), module_name="JevSelectorPreparation"):
+    """Use Lake's import/plugin setup even for generated files outside the project."""
+    setup_log = log.with_suffix(".setup.log")
+    process(["lake", "setup-file", str(source)], project, setup_log, env, timeout)
+    lines = [line for line in setup_log.read_text().splitlines() if line.startswith("{")]
+    if not lines:
+        raise RuntimeError(f"missing Lake module setup; see {setup_log}")
+    setup = json.loads(lines[-1])
+    setup["name"] = module_name
+    for option in options:
+        if option.startswith("-D"):
+            setup.get("options", {}).pop(option[2:].split("=", 1)[0], None)
+    setup_file = log.with_suffix(".setup.json")
+    write_json(setup_file, setup)
+    process(["lake", "env", "lean", "--setup", str(setup_file), *options, str(source)],
+            project, log, env, timeout)
+
+
 def prepare(args):
     resources = ensure_bounded(args)
     start = time.monotonic()
@@ -152,8 +170,8 @@ def prepare(args):
         config = output / "export.json"
         write_json(config, {"output": str(output / "corpus.jsonl"), "scopes": scopes})
         env = dict(os.environ, JEVSELECTOR_EXPORT_CONFIG=str(config), LEAN_NUM_THREADS=str(args.threads))
-        process(["lake", "env", "lean", f"-j{args.threads}", "-M0", "-DmaxHeartbeats=0",
-                 str(output / "Extract.lean")], project, output / "extract.log", env, args.timeout)
+        lean_file(project, output / "Extract.lean", output / "extract.log", env, args.timeout,
+                  [f"-j{args.threads}", "-M0", "-DmaxHeartbeats=0"])
         extraction_seconds = time.monotonic() - start
         with (output / "corpus.jsonl").open() as handle:
             artifact = fit((json.loads(line) for line in handle), holdout)
@@ -209,8 +227,8 @@ def profile(args):
     write_json(config, {"index": str(args.index.absolute()), "output": str(output / "queries.json"),
                         "samples": args.samples, "repeats": args.repeats})
     env = dict(os.environ, JEVSELECTOR_PROFILE_CONFIG=str(config), JEVSELECTOR_TRACE_LOAD="1")
-    process(["lake", "env", "lean", f"-j{args.threads}", "-M0", "-DmaxHeartbeats=0",
-             str(output / "Profile.lean")], project, output / "profile.log", env, args.timeout)
+    lean_file(project, output / "Profile.lean", output / "profile.log", env, args.timeout,
+              [f"-j{args.threads}", "-M0", "-DmaxHeartbeats=0"], "JevSelectorProfile")
     report = json.loads((output / "queries.json").read_text())
     timings = sorted(r["elapsedNanos"] / 1e6 for r in report["queries"])
     if not timings:
