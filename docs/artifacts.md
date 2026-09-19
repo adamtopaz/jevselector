@@ -48,3 +48,8 @@ experiments; compare end-to-end verified proof coverage, not only retrieval reca
 Preparation/profile Lean processes rely on the aggregate cgroup/job limit.
 A separate Lean allocator limit is disabled because memory-mapped whole-library
 imports can exceed it even when resident memory is small.
+
+The CLI obtains `lake setup-file` metadata and loads its native plugins when
+elaborating generated files. Plain `lake env lean file.lean` does not reproduce
+that setup; use `lake lean file.lean` or ordinary Lake builds in downstream
+projects to benefit from native metaprogram execution.

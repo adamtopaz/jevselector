@@ -3,7 +3,8 @@
 Portable premise-selector preparation and CPU retrieval for Lean. Implements
 Lean's standard `Lean.LibrarySuggestions.Selector`; no Mathlib, JevHammer,
 Python runtime, neural model, or network service is required for **querying**.
-The preparation CLI uses Python's standard library and Lake.
+The preparation CLI uses Python's standard library and Lake. Selector modules
+are precompiled into native libraries using Lean's C toolchain.
 
 The initial algorithm indexes constants in theorem **types** and ranks weighted
 symbol overlap with the goal and local context. It never reads proof bodies.
@@ -119,6 +120,6 @@ This measures cold loading and repeated queries on evenly spaced theorem types,
 excluding the query theorem itself. For quality measurements use JevHammer's
 source-location benchmark.
 
-See [artifact and algorithm details](docs/artifacts.md),
+See [initial validation](docs/validation.md), [artifact and algorithm details](docs/artifacts.md),
 [contributing](CONTRIBUTING.md), and [research plans](notes/design.md).
 Licensed under the [Apache License, Version 2.0](LICENSE).
