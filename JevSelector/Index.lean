@@ -21,8 +21,10 @@ structure Artifact where
 
 structure Index where
   artifact : Artifact
-  postings : Std.HashMap Name (Array Nat)
-  weights : Std.HashMap Name Float
+  /-- Serialized feature keys are opaque text: hygienic constant names do not
+  round-trip through `String.toName`. Query features use the same printer. -/
+  postings : Std.HashMap String (Array Nat)
+  weights : Std.HashMap String Float
   trainingOwners : Std.HashSet String
   /-- Mean statement feature count; computed while loading, never per query. -/
   meanSymbolCount : Float := 1
@@ -41,7 +43,7 @@ def load (path : System.FilePath) : IO Index := do
     throw <| IO.userError "JevSelector: incompatible artifact schema or Lean version"
   -- Prepend to lists while building: repeatedly appending to shared arrays
   -- would copy very common-symbol postings quadratically.
-  let mut lists : Std.HashMap Name (List Nat) := {}
+  let mut lists : Std.HashMap String (List Nat) := {}
   let mut weights := {}
   let mut seen : Std.HashSet String := {}
   for (e, i) in artifact.declarations.zipIdx do
@@ -49,12 +51,11 @@ def load (path : System.FilePath) : IO Index := do
     if seen.contains e.name then throw <| IO.userError "JevSelector: duplicate declaration"
     seen := seen.insert e.name
     for s in e.symbols do
-      let s := s.toName
       lists := lists.insert s (i :: lists.getD s [])
   for w in artifact.weights do
     unless w.weight > 0 && w.weight < 1000000 do
       throw <| IO.userError "JevSelector: invalid symbol weight"
-    weights := weights.insert w.symbol.toName w.weight
+    weights := weights.insert w.symbol w.weight
   let excluded : Std.HashSet String := .ofArray artifact.excluded
   let mut trainingOwners : Std.HashSet String := {}
   for name in artifact.eligible do
@@ -119,17 +120,17 @@ Zero means exhaustive postings. This bounds common-symbol work deterministically
   lengthNormalization : LengthNormalization := .squareRoot
 
 private def goalSymbols (goal : MVarId) (options : QueryConfig) :
-    MetaM (Array (Name × Float)) := goal.withContext do
-  let mut found : Std.HashMap Name Float := {}
+    MetaM (Array (String × Float)) := goal.withContext do
+  let mut found : Std.HashMap String Float := {}
   for s in symbols (← instantiateMVars (← goal.getType)) do
-    found := found.insert s options.targetWeight
+    found := found.insert s.toString options.targetWeight
   for localDecl in ← getLCtx do
     for s in symbols (← instantiateMVars localDecl.type) do
-      found := found.insert s (max (found.getD s 0) options.contextWeight)
+      found := found.insert s.toString (max (found.getD s.toString 0) options.contextWeight)
     if let some value := localDecl.value? then
       for s in symbols (← instantiateMVars value) do
-        found := found.insert s (max (found.getD s 0) options.contextWeight)
-  return found.toArray.qsort (fun a b => a.1.toString < b.1.toString)
+        found := found.insert s.toString (max (found.getD s.toString 0) options.contextWeight)
+  return found.toArray.qsort (fun a b => a.1 < b.1)
 
 private def lengthPenalty (idx : Index) (options : QueryConfig) (size : Nat) : Float :=
   match options.lengthNormalization with
@@ -137,7 +138,7 @@ private def lengthPenalty (idx : Index) (options : QueryConfig) (size : Nat) : F
   | .pivoted => 0.25 + 0.75 * (max 1 size).toFloat / idx.meanSymbolCount
 
 private def queryScores (idx : Index) (goal : MVarId) (options : QueryConfig) :
-    MetaM (Array (Name × Float) × Std.HashMap Nat Float) := do
+    MetaM (Array (String × Float) × Std.HashMap Nat Float) := do
   unless options.targetWeight > 0 && options.targetWeight < 1000000 &&
       options.contextWeight > 0 && options.contextWeight < 1000000 do
     throwError "JevSelector: query weights must be finite and positive"
@@ -187,7 +188,7 @@ def Index.selector (idx : Index) (options : QueryConfig := {}) : Selector := fun
   if options.includeCurrentFile then
     for (name, info) in env.constants.map₂ do
       if !wasOriginallyTheorem env name then continue
-      let features := symbols info.type
+      let features := (symbols info.type).map Name.toString
       let score := query.foldl (fun acc (s, queryWeight) =>
         if features.contains s then acc + queryWeight * idx.weights.getD s 1 else acc) 0
       candidates := candidates.push (name.toString,

@@ -14,6 +14,11 @@ For eligible theorem count N and document frequency df(s), symbol weight is
 `1 + log((N+1)/(df(s)+1))`. Holdouts are removed BEFORE N and df are computed.
 Their public statements remain in the catalog for legitimate later retrieval.
 Symbols absent from fitted statistics receive the fixed weight 1 at query time.
+Serialized feature names are opaque strings, matched against the same printer
+at query time. They are never parsed with `String.toName`: hygienic/internal
+constant names can fail identifier parsing and collapse to the anonymous name.
+This differs from actual public premise names, which are resolved and checked
+against the current environment.
 
 Queries union constants from the target, hypothesis types, and local definition
 values. A sparse inverted index accumulates symbol weights; each premise's score

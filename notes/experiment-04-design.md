@@ -51,3 +51,20 @@ exact smoothing/pruning, excluded and missing examples, permitted held-out label
 model identity, empty vocabulary, unavailable premises, caller filters, stale
 statement hashes, unknown queries, and runtime rejection of excluded examples.
 No full-library preparation, query cost, or proof-coverage claim is made yet.
+
+Full-library fitting then completed in 14.08 seconds, reusing the excluded
+statement/dependency artifacts: 145,736 premise profiles, 59,171 symbols,
+4,971,407 retained feature corrections, and a 251,890,819-byte artifact. Peak
+memory was 4,537,978,880 bytes under the 16 GB zero-swap limit, with no limit/OOM
+events. These figures exclude the prior extraction costs.
+
+The first full-library query profile failed during loading, before any query or
+proof trial. The vocabulary exposed 170 collisions when printed hygienic names
+were parsed with `String.toName`; invalid identifier strings became anonymous.
+Feature keys now remain opaque text in both sparse and usage retrieval and are
+matched against the same `Name.toString` printer used during extraction. This
+also fixes previously silent missing/collapsed feature matches in sparse lookup.
+Actual public premise names still resolve through the environment as before.
+Existing artifact bytes remain valid. The full test suite and explicit hygienic
+feature-name regressions pass. Rerun the matched references under the fixed code;
+do not combine old and new rankings as though they were identical configurations.

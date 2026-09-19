@@ -51,3 +51,12 @@ run_cmd liftTermElabM do
   catch _ => pure true
   IO.FS.removeFile path
   unless rejected do throwError "usage loader accepted an excluded proof example"
+  let first := "First._@.Example.1._hygCtx._hyg.8"
+  let second := "Second._@.Example.1._hygCtx._hyg.8"
+  let opaqueArtifact := { model.artifact with
+    symbols := model.artifact.symbols ++ #[first, second] }
+  IO.FS.writeFile path (toJson opaqueArtifact).compress
+  let restored ← loadUsage idx path
+  IO.FS.removeFile path
+  unless restored.knownFeatures.contains first && restored.knownFeatures.contains second do
+    throwError "usage loader did not preserve opaque hygienic feature names"

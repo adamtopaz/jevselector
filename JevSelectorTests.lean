@@ -43,6 +43,23 @@ run_cmd liftTermElabM do
     pure false
   catch _ => pure true
   unless rejectedWarmup do throwError "warmup accepted an incompatible imported statement"
+  -- Hygienic internal feature names are opaque text, not parseable identifiers.
+  let first := "First._@.Example.1._hygCtx._hyg.8"
+  let second := "Second._@.Example.1._hygCtx._hyg.8"
+  unless first.toName == second.toName do throwError "regression fixture no longer collides"
+  let extraWeights : Array Weight := #[{ symbol := first, weight := 2 },
+    { symbol := second, weight := 3 }]
+  let opaqueArtifact := { idx.artifact with
+    declarations := idx.artifact.declarations.map fun (e : Entry) =>
+      { e with symbols := e.symbols ++ #[first, second] }
+    weights := idx.artifact.weights ++ extraWeights }
+  let opaquePath := path ++ ".feature-names"
+  IO.FS.writeFile opaquePath (toJson opaqueArtifact).compress
+  let restored ← load opaquePath
+  IO.FS.removeFile opaquePath
+  unless restored.weights.getD first 0 == 2 && restored.weights.getD second 0 == 3 &&
+      restored.postings.contains first && restored.postings.contains second do
+    throwError "serialized feature names were collapsed by identifier parsing"
 
 
 theorem freshlyDeclared (n : Nat) : n = n := rfl
@@ -64,7 +81,7 @@ run_cmd liftTermElabM do
   let i := idx.artifact.declarations.size
   let stale := { idx with
     artifact := { idx.artifact with declarations := idx.artifact.declarations.push old }
-    postings := idx.postings.insert `False #[i] }
+    postings := idx.postings.insert "False" #[i] }
   stale.validateEnvironment
   let fresh ← stale.selector {} goal.mvarId! { filter := fun n => pure (n == ``freshlyDeclared) }
   let [suggestion] := fresh.toList | throwError "expected exactly one current-file premise"

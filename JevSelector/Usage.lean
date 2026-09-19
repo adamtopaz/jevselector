@@ -32,8 +32,8 @@ structure UsageArtifact where
 structure UsageIndex where
   statements : Index
   artifact : UsageArtifact
-  knownFeatures : Std.HashSet Name
-  postings : Std.HashMap Name (Array (Nat × Float))
+  knownFeatures : Std.HashSet String
+  postings : Std.HashMap String (Array (Nat × Float))
 
 /-- Load the sparse usage model only against its exact eligible statement index. -/
 def loadUsage (idx : Index) (path : System.FilePath) : IO UsageIndex := do
@@ -51,14 +51,13 @@ def loadUsage (idx : Index) (path : System.FilePath) : IO UsageIndex := do
     owners := owners.insert owner
   unless owners.size == idx.eligibleNames.size do
     throw <| IO.userError "JevSelector: incomplete eligible usage example set"
-  let mut knownFeatures : Std.HashSet Name := {}
+  let mut knownFeatures : Std.HashSet String := {}
   for text in artifact.symbols do
-    let name := text.toName
-    if knownFeatures.contains name then
+    if knownFeatures.contains text then
       throw <| IO.userError "JevSelector: duplicate usage feature"
-    knownFeatures := knownFeatures.insert name
+    knownFeatures := knownFeatures.insert text
   let mut names : Std.HashSet Name := {}
-  let mut lists : Std.HashMap Name (List (Nat × Float)) := {}
+  let mut lists : Std.HashMap String (List (Nat × Float)) := {}
   for (p, i) in artifact.premises.zipIdx do
     let name := p.name.toName
     unless !names.contains name && p.logPrior > -1000000 && p.logPrior <= 0 &&
@@ -73,7 +72,7 @@ def loadUsage (idx : Index) (path : System.FilePath) : IO UsageIndex := do
           feature.weight > 0 && feature.weight < 1000000 do
         throw <| IO.userError "JevSelector: invalid or duplicate usage feature weight"
       seen := seen.insert feature.symbol
-      let symbol := artifact.symbols[feature.symbol]!.toName
+      let symbol := artifact.symbols[feature.symbol]!
       lists := lists.insert symbol ((i, feature.weight) :: lists.getD symbol [])
   let mut postings := {}
   for (symbol, entries) in lists do
@@ -98,13 +97,14 @@ structure UsageQueryConfig where
   /-- Deterministic bound per symbol; zero means exhaustive postings. -/
   maxPostingsPerSymbol : Nat := 20000
 
-private def usageQuery (goal : MVarId) : MetaM (Array Name) := goal.withContext do
-  let mut found : Std.HashSet Name := .ofArray (symbols (← instantiateMVars (← goal.getType)))
+private def usageQuery (goal : MVarId) : MetaM (Array String) := goal.withContext do
+  let mut found : Std.HashSet String := .ofArray
+    ((symbols (← instantiateMVars (← goal.getType))).map Name.toString)
   for decl in ← getLCtx do
-    for name in symbols (← instantiateMVars decl.type) do found := found.insert name
+    for name in symbols (← instantiateMVars decl.type) do found := found.insert name.toString
     if let some value := decl.value? then
-      for name in symbols (← instantiateMVars value) do found := found.insert name
-  return found.toArray.qsort fun a b => a.toString < b.toString
+      for name in symbols (← instantiateMVars value) do found := found.insert name.toString
+  return found.toArray.qsort (· < ·)
 
 /-- Sparse smoothed premise-usage likelihood. Scores preserve order but are not
 calibrated probabilities. Only returned, available premises enter suggestions. -/
