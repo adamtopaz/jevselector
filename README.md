@@ -10,6 +10,8 @@ The initial algorithm indexes constants in theorem **types** and ranks weighted
 symbol overlap with the goal and local context. It never reads proof bodies.
 This is an inspectable baseline for further experiments, **not yet a demonstrated
 replacement for the strongest neural-selector/JevHammer pipeline**.
+The library also supplies a configurable Sine Qua Non baseline using Lean's
+built-in retrieval algorithm, without any external preparation or service.
 
 ## Install
 
@@ -28,6 +30,32 @@ lake update
 lake build JevSelector
 python -m pip install 'git+https://github.com/adamtopaz/jevselector'
 ```
+
+## Sine Qua Non baseline
+
+```lean
+import JevSelector.SineQuaNon
+
+def mySineSelector : Lean.LibrarySuggestions.Selector :=
+  JevSelector.SineQuaNon.selector {
+    depthFactor := 1.5
+    maxCandidates := 1024
+    includeCurrentFile := true }
+```
+
+Use `mySineSelector` with `jev_hammer ... using mySineSelector`, or pass it to
+any consumer of Lean's selector interface. `SineQuaNon.warmup` loads the imported
+trigger and symbol-frequency maps separately from goal-dependent retrieval.
+This uses only Lean's compiled statement statistics; no index file, Python,
+training run, or neural component is needed.
+
+Imported premises retain Lean's Sine Qua Non priority ordering. The wrapper
+filters unavailable/denied premises, respects the caller filter, and removes
+duplicates. When filtering leaves too few results, it doubles the raw retrieval
+request up to `maxCandidates`. Optional earlier current-file theorems (including
+private ones) are sorted by name and interleaved 1:1 with imported suggestions.
+No scores from different selectors are compared. See
+[baseline details](docs/sine-qua-non.md) for bounds and benchmark settings.
 
 ## Prepare any library
 

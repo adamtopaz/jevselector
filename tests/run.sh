@@ -7,5 +7,6 @@ trap 'status=$?; if [ "$status" -eq 0 ]; then rm -rf "$scratch"; else echo "Test
 python -m jevselector prepare --modules SelectorFixture --exclude tests/holdout.json --output "$scratch/prepared" "$@"
 python -m jevselector verify "$scratch/prepared"
 JEVSELECTOR_TEST_INDEX="$scratch/prepared/index.json" lake env lean JevSelectorTests.lean
+lake env lean SineQuaNonTests.lean
 
 python -m jevselector profile --modules SelectorFixture --index "$scratch/prepared/index.json" --samples 3 --repeats 2 --output "$scratch/profile" "$@"
