@@ -12,12 +12,17 @@ unavailable premises, caller filters before truncation, changed statements,
 artifact checksums, and full-data overlap rejection. GitHub CI runs the small
 fixture without credentials or Mathlib.
 
-An initial whole-Mathlib extraction produced 255,050 public theorem statement
+Whole-Mathlib extraction at commit
+`db584cd6d46c92f209a44c0f1c829460d327499d` produced 255,050 public theorem statement
 rows. A 32-location held-out Mathlib cohort excluded 46 declarations/helpers
-(21 theorem rows). The resulting schema-1 index was about 156 MB. No proof bodies
-or external model outputs were used.
+(21 theorem rows), leaving 255,029 fitting rows. Final preparation took **202.6
+seconds**, including 198.7 seconds for the Lean extraction subprocess. The
+resulting schema-1 index was 155,686,860 bytes (about 156 MB). No proof bodies or
+external model outputs were used. The index SHA-256 was
+`bdef7b455146f3ae87ebc7600bd6c445010405a6e00214f61b41aed33bbb2aec`.
 
-On that index, 16 evenly spaced theorem types queried three times each gave:
+On an index with the same catalog and fitting eligibility, 16 evenly spaced
+theorem types queried three times each gave:
 
 | Execution | Queries | Median | 95th percentile | Cold index load |
 |---|---:|---:|---:|---:|
