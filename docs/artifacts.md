@@ -90,3 +90,27 @@ validation delegates to the linked statement index, whose eligible set must
 equal the dependency example set. Training-example lookup is a separate API from
 premise lookup: examples may be unavailable at a goal, but predicted premises
 may not. No proof bodies are queried at runtime.
+
+## Experimental usage companion
+
+`usage.json` contains the linked statement identity, exact eligible example
+owners, feature vocabulary, and premise records. Each premise stores its
+statement hash, log prior, log normalizer, and retained positive feature
+corrections indexed into the shared vocabulary. `usage.sha256` attests the
+serialized model. The default smoother has mass 20 and retains the 64 largest
+corrections per premise; the full normalizer remains unchanged by pruning.
+
+Preparation checks all owners and labels before counting. The CLI additionally
+requires the dependency artifact's recorded statement-index checksum to match
+the actual input bytes. Fitting reads only the two immutable artifacts, records
+their checksums and fitting-code hash, and rejects changes during the pass.
+It does not require a new Lean extraction or inspect any additional proof.
+
+Warm queries accumulate feature corrections through bounded sparse postings,
+then add each touched label's prior and query-length normalizer. Unknown query
+features are ignored. Returned scores are exponential differences from the best
+returned score, preserving rank without claiming calibrated probabilities.
+There are no popularity-only results when a query has no matching postings.
+The loader rejects duplicate/missing/ineligible examples, invalid feature IDs or
+weights, excessive feature counts, and incompatible statement identities.
+Availability, caller filters, and imported type-hash checks precede truncation.

@@ -95,6 +95,29 @@ environment and obey the caller filter. Only eligible proofs contribute examples
 or label-frequency statistics. See the [experiment protocol](notes/experiment-02.md)
 for the fixed initial ranking and its limitations.
 
+## Experimental sparse premise-usage model
+
+The research branch also has a candidate that fits symbol profiles from **all**
+eligible proof examples using each premise. This is a smoothed sparse language
+model, built by CPU counting with no neural encoder or Jev call. It reuses the
+existing excluded artifacts; no proof extraction is repeated:
+
+```sh
+jevselector usage --index artifacts/heldout/index.json \
+  --dependencies artifacts/proof-neighbors/dependencies.json \
+  --output artifacts/usage --memory-limit 16000000000
+jevselector verify artifacts/usage
+```
+
+Load with `JevSelector.loadUsage idx "artifacts/usage/usage.json"`, then use
+`model.selector {}`, `model.validateEnvironment`, and `model.validateHoldouts`.
+The query uses only the statement index and usage artifact, with no Python,
+service, or proof-body access. The model ranks learned usage profiles rather
+than the premises' own statement overlap. See the
+[fixed formulation](notes/experiment-04-design.md) for smoothing, pruning, and
+limits. The implementation passes preparation and native integration tests;
+no coverage gain is claimed.
+
 ## Prepare any library
 
 Run from a Lake project importing the desired library:

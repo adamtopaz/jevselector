@@ -1,7 +1,7 @@
 # Candidate design: learned sparse premise-usage profiles
 
 Proposed during the first dependency-voting pilot, 2026-09-19. This is a separate
-CPU-only hypothesis, not an implemented or measured improvement. It uses the
+CPU-only hypothesis, not a measured improvement. It uses the
 same excluded statement/dependency artifacts and needs no new proof extraction.
 
 Nearest-neighbor transfer considers only a bounded number of similar examples.
@@ -44,3 +44,10 @@ its first test; those require their own matched ablations.
 
 This is one fixed, explainable starting point. It is not evidence that a sparse
 usage model will beat the neural reference. A failed screen should remain public.
+
+The implementation passed the complete 17-test Python suite and native Lean
+integration checks on 2026-09-19, under the 16 GB zero-swap limit. Tests cover
+exact smoothing/pruning, excluded and missing examples, permitted held-out labels,
+model identity, empty vocabulary, unavailable premises, caller filters, stale
+statement hashes, unknown queries, and runtime rejection of excluded examples.
+No full-library preparation, query cost, or proof-coverage claim is made yet.

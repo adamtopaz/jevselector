@@ -15,6 +15,7 @@ import time
 
 from .resources import DEFAULT_LIMIT, ensure_bounded, resource_snapshot
 from .dependencies import fit_dependencies
+from .usage import fit_usage
 
 
 def sha(data):
@@ -209,7 +210,7 @@ def prepare(args):
 
 def verify(args):
     output = args.directory
-    names = [name for name in ["index", "dependencies"] if (output / f"{name}.json").exists()]
+    names = [name for name in ["index", "dependencies", "usage"] if (output / f"{name}.json").exists()]
     if not names:
         raise ValueError("directory contains no recognized selector artifact")
     for name in names:
@@ -283,6 +284,54 @@ def dependencies(args):
         write_json(output / "report.json", report)
 
 
+def usage(args):
+    resources = ensure_bounded(args)
+    start = time.monotonic()
+    output = args.output.absolute()
+    output.mkdir(parents=True, exist_ok=False)
+    (output / ".jevselector-output").touch()
+    report = {"schema": 1, "status": "running", "resources": {"initial": resources}}
+    write_json(output / "report.json", report)
+    try:
+        inputs = {"statements": args.index, "dependencies": args.dependencies}
+        data = {key: path.read_bytes() for key, path in inputs.items()}
+        digests = {key: sha(value) for key, value in data.items()}
+        statements, dependencies_model = json.loads(data["statements"]), json.loads(data["dependencies"])
+        if dependencies_model.get("provenance", {}).get("statementIndexSha256") != digests["statements"]:
+            raise ValueError("dependency artifact does not attest these exact statement-index bytes")
+        code = [Path(__file__), Path(__file__).with_name("usage.py")]
+        code_hashes = {path.name: sha(path.read_bytes()) for path in code}
+        artifact = fit_usage(statements, dependencies_model,
+                             smoothing_mass=args.smoothing_mass, max_features=args.max_features)
+        if digests != {key: sha(path.read_bytes()) for key, path in inputs.items()}:
+            raise RuntimeError("usage input artifacts changed during fitting")
+        if code_hashes != {path.name: sha(path.read_bytes()) for path in code}:
+            raise RuntimeError("usage fitting code changed during preparation")
+        recipe = {"algorithm": "smoothed-premise-usage-v1", "smoothingMass": args.smoothing_mass,
+                  "maxFeatures": args.max_features, "queryFeatures": "unique known statement constants",
+                  "featurePruning": "largest positive corrections; full label normalizer retained"}
+        artifact["provenance"] = {"recipe": recipe, "inputSha256": digests,
+            "statementProvenance": statements["provenance"],
+            "dependencyProvenance": dependencies_model["provenance"],
+            "preparationCodeSha256": code_hashes}
+        write_json(output / "usage.json", artifact)
+        checksum = sha((output / "usage.json").read_bytes())
+        (output / "usage.sha256").write_text(checksum + "  usage.json\n")
+        report.update(status="complete", usageSha256=checksum, recipe=recipe,
+            examples=len(artifact["exampleOwners"]), premises=len(artifact["premises"]),
+            symbols=len(artifact["symbols"]),
+            featureEdges=sum(len(p["features"]) for p in artifact["premises"]),
+            artifactBytes=(output / "usage.json").stat().st_size)
+        print(f"Prepared usage profiles for {report['premises']} premises")
+    except BaseException as error:
+        report.update(status="incomplete", error=str(error))
+        raise
+    finally:
+        report["totalSeconds"] = time.monotonic() - start
+        report["resources"]["final"] = resource_snapshot()
+        write_json(output / "report.json", report)
+
+
 def profile(args):
     resources = ensure_bounded(args)
     project, output = args.project.absolute(), args.output.absolute()
@@ -295,7 +344,8 @@ def profile(args):
     config = output / "config.json"
     write_json(config, {"index": str(args.index.absolute()), "output": str(output / "queries.json"),
                         "samples": args.samples, "repeats": args.repeats, "method": args.method,
-                        "dependencies": str(args.dependencies.absolute()) if args.dependencies else None})
+                        "dependencies": str(args.dependencies.absolute()) if args.dependencies else None,
+                        "usage": str(args.usage.absolute()) if args.usage else None})
     env = dict(os.environ, JEVSELECTOR_PROFILE_CONFIG=str(config), JEVSELECTOR_TRACE_LOAD="1")
     lean_file(project, output / "Profile.lean", output / "profile.log", env, args.timeout,
               [f"-j{args.threads}", "-M0", "-DmaxHeartbeats=0"], "JevSelectorProfile")
@@ -328,8 +378,9 @@ def main():
     p.add_argument("--project", type=Path, default=Path.cwd())
     p.add_argument("--modules", nargs="+", required=True)
     p.add_argument("--index", type=Path, required=True)
-    p.add_argument("--method", choices=["sparse", "target", "ensemble", "neighbors", "proof-hybrid"], default="sparse")
+    p.add_argument("--method", choices=["sparse", "target", "ensemble", "neighbors", "proof-hybrid", "usage"], default="sparse")
     p.add_argument("--dependencies", type=Path, help="dependency companion for proof-neighbor methods")
+    p.add_argument("--usage", type=Path, help="learned premise-usage companion")
     p.add_argument("--output", type=Path, required=True)
     p.add_argument("--samples", type=int, default=32)
     p.add_argument("--repeats", type=int, default=3)
@@ -347,17 +398,29 @@ def main():
     p.add_argument("--timeout", type=int, default=1800)
     p.add_argument("--memory-limit", type=int, default=DEFAULT_LIMIT)
     p.add_argument("--external-memory-limit", action="store_true")
+    p = sub.add_parser("usage")
+    p.add_argument("--index", type=Path, required=True)
+    p.add_argument("--dependencies", type=Path, required=True)
+    p.add_argument("--output", type=Path, required=True)
+    p.add_argument("--smoothing-mass", type=float, default=20.0)
+    p.add_argument("--max-features", type=int, default=64, help="per-premise cap; zero keeps all")
+    p.add_argument("--memory-limit", type=int, default=DEFAULT_LIMIT)
+    p.add_argument("--external-memory-limit", action="store_true")
     args = parser.parse_args()
     try:
         if args.command == "prepare":
             prepare(args)
         elif args.command == "dependencies":
             dependencies(args)
+        elif args.command == "usage":
+            usage(args)
         elif args.command == "profile":
             if args.samples <= 0 or args.repeats <= 0:
                 raise ValueError("samples and repeats must be positive")
             if args.method in {"neighbors", "proof-hybrid"} and args.dependencies is None:
                 raise ValueError("proof-neighbor profiling requires --dependencies")
+            if args.method == "usage" and args.usage is None:
+                raise ValueError("usage profiling requires --usage")
             profile(args)
         else:
             verify(args)
