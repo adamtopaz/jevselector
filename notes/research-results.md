@@ -97,3 +97,24 @@ Combined index/model loading took 6.35–7.89 s. The profile scope peaked at 2.8
 with no memory events. These are cost measurements, not verified proof gains.
 The next paired pilot retains target-weighted retrieval and the warmed neural
 reference; the reserved evaluation split remains untouched.
+
+## Experiment 02: completed negative proof screen
+
+On the same 34 development locations, direct dependency voting and its sparse
+fusion each solved **12/34**, versus **13/34** for target-weighted retrieval and
+**14/34** for warmed neural retrieval. All 51 successful proofs independently
+replayed; every one was on time. All 136 trials were recorded. Direct voting
+gained one and lost three versus neural (paired 95% interval −17.6 to +5.9 points);
+fusion gained none and lost two (−14.7 to 0.0 points). Neither configuration should
+replace the best current reference.
+
+Retrieval totals were 4.409 s for direct voting, 9.869 s for fusion, 5.668 s for
+target weighting, and 10.428 s for neural. All ranking/API failures are retained
+(7, 3, 4, and 1 respectively). The shared 16 GB zero-swap scope peaked at 9.19 GB
+with no memory events. No reserved evaluation trial has been attempted.
+
+The next candidate fits sparse premise-usage profiles across all eligible proofs,
+reusing these artifacts. Its formulation was recorded before testing it in
+`notes/experiment-04-design.md`; implementation validation is underway. Structural
+retrieval remains an independent planned ablation. The significant-improvement
+objective remains unfulfilled.
