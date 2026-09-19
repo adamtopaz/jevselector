@@ -1,5 +1,5 @@
 module
-public meta import JevSelector.Ensemble
+public meta import JevSelector.ProofDependencies
 public meta import Lean.Elab.Command
 public meta section
 namespace JevSelector
@@ -17,14 +17,24 @@ elab "#jevselector_profile" : command => do
   let method := (cfg.getObjValAs? String "method").toOption.getD "sparse"
   let start ← IO.monoMsNow
   let idx ← load indexPath
+  let dependencies ← match (cfg.getObjValAs? String "dependencies").toOption with
+    | none => pure none
+    | some path => some <$> loadDependencies idx path
   let loadMs := (← IO.monoMsNow) - start
   IO.eprintln s!"JevSelector index loaded in {loadMs}ms"
   let timings ← liftTermElabM do
     idx.validateEnvironment
+    if let some model := dependencies then model.validateEnvironment
     let selector ← match method with
       | "sparse" => pure (idx.selector {})
       | "target" => pure idx.targetSelector
       | "ensemble" => pure (idx.ensembleSelector {})
+      | "neighbors" => match dependencies with
+        | some model => pure (model.selector {})
+        | none => throwError "JevSelector: neighbors profiling requires a dependency artifact"
+      | "proof-hybrid" => match dependencies with
+        | some model => pure (model.hybridSelector {})
+        | none => throwError "JevSelector: proof-hybrid profiling requires a dependency artifact"
       | _ => throwError "JevSelector: unknown profiling method {method}"
     let mut rows := #[]
     let count := min samples idx.artifact.declarations.size

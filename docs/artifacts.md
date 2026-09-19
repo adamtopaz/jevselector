@@ -49,9 +49,10 @@ Logs and export configuration may contain preparer's machine paths; only the
 index and checksum are needed for deployment. No absolute path is needed to
 load or query the index. Do not distribute credentials in project manifests.
 
-The initial version has no learned proof-frequency statistics, graph traversal,
-Jev reranking, query result cache, or binary/memory-mapped index. These are future
-experiments; compare end-to-end verified proof coverage, not only retrieval recall.
+The base index has no proof-frequency statistics, graph traversal, Jev reranking,
+query result cache, or binary/memory-mapped representation. Experimental direct
+proof-neighbor statistics live in a separate companion artifact described below.
+Compare end-to-end verified proof coverage, not only retrieval recall.
 
 Preparation/profile Lean processes rely on the aggregate cgroup/job limit.
 A separate Lean allocator limit is disabled because memory-mapped whole-library
@@ -61,3 +62,31 @@ The CLI obtains `lake setup-file` metadata and loads its native plugins when
 elaborating generated files. Plain `lake env lean file.lean` does not reproduce
 that setup; use `lake lean file.lean` or ordinary Lake builds in downstream
 projects to benefit from native metaprogram execution.
+
+## Experimental dependency companion
+
+`dependencies.json` has its own schema-1 format: Lean version, the linked statement
+artifact identity, one dependency row per exact eligible owner, a unique premise
+catalog with statement hashes and label-frequency weights, and provenance.
+`dependencies.sha256` covers its bytes. `jevselector verify` recognizes either
+artifact directory. Preparation imports all requested modules so proof values
+can be accessed; it fails if an eligible proof is unavailable or contains an
+admission. It never reads excluded proof values or recursively opens referenced
+definition/helper bodies. Thus dependencies hidden inside helpers are omitted.
+
+All owner-set checks precede fitting label frequencies. The loader independently
+rejects missing, duplicate, or ineligible examples, mismatched statement identities,
+uncataloged/duplicate labels, and invalid weights. Label weights are
+`1 + log((N+1)/(df+1))`, with N the number of eligible examples and df the number
+of those examples containing the label. Held-out theorem statements can be labels
+in other eligible proofs, but their own proofs remain excluded from examples.
+The runtime checks both availability and the caller filter before truncation.
+Available imported premise hashes are checked; earlier current-file labels use
+the actual live statement, as for the base selector.
+
+The dependency report records extraction time, example/edge counts, size, memory
+events, and the exact statement-index checksum and source snapshot. Holdout
+validation delegates to the linked statement index, whose eligible set must
+equal the dependency example set. Training-example lookup is a separate API from
+premise lookup: examples may be unavailable at a goal, but predicted premises
+may not. No proof bodies are queried at runtime.

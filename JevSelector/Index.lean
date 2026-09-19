@@ -26,6 +26,8 @@ structure Index where
   trainingOwners : Std.HashSet String
   /-- Mean statement feature count; computed while loading, never per query. -/
   meanSymbolCount : Float := 1
+  /-- Exact eligible example names, distinct from owner-prefix admission checks. -/
+  eligibleNames : Std.HashSet String := {}
 
 /-- Loading is separate from querying so clients can account for cold-start cost. -/
 def load (path : System.FilePath) : IO Index := do
@@ -74,7 +76,7 @@ def load (path : System.FilePath) : IO Index := do
   let totalSymbols := artifact.declarations.foldl (fun n e =>
     if eligible.contains e.name then n + e.symbols.size else n) (0 : Nat)
   let meanSymbolCount := max 1 (totalSymbols.toFloat / (max 1 eligible.size).toFloat)
-  return { artifact, postings, weights, trainingOwners, meanSymbolCount }
+  return { artifact, postings, weights, trainingOwners, meanSymbolCount, eligibleNames := eligible }
 
 /-- Validate imported catalog statements during goal-independent warmup.
 Unavailable statements are allowed: an artifact can cover more than a source goal's imports.
@@ -134,10 +136,8 @@ private def lengthPenalty (idx : Index) (options : QueryConfig) (size : Nat) : F
   | .squareRoot => Float.sqrt (max 1 size).toFloat
   | .pivoted => 0.25 + 0.75 * (max 1 size).toFloat / idx.meanSymbolCount
 
-/-- Sparse weighted symbol overlap, filtered against the *current* environment
-and caller before truncating. Scores are normalized overlap, not calibrated probabilities. -/
-def Index.selector (idx : Index) (options : QueryConfig := {}) : Selector := fun goal cfg => do
-  if cfg.maxSuggestions == 0 then return #[]
+private def queryScores (idx : Index) (goal : MVarId) (options : QueryConfig) :
+    MetaM (Array (Name × Float) × Std.HashMap Nat Float) := do
   unless options.targetWeight > 0 && options.targetWeight < 1000000 &&
       options.contextWeight > 0 && options.contextWeight < 1000000 do
     throwError "JevSelector: query weights must be finite and positive"
@@ -150,6 +150,29 @@ def Index.selector (idx : Index) (options : QueryConfig := {}) : Selector := fun
     for j in [:count] do
       let i := postings[j * postings.size / count]!
       scores := scores.insert i (scores.getD i 0 + queryWeight * idx.weights.getD symbol 1)
+  return (query, scores)
+
+/-- Retrieve eligible TRAINING EXAMPLES by statement similarity. These names are
+not premise suggestions: examples may be unavailable in the current environment.
+Consumers must separately filter any predicted premises against that environment. -/
+def Index.trainingNeighbors (idx : Index) (goal : MVarId) (count : Nat := 32)
+    (options : QueryConfig := {}) : MetaM (Array Name) := do
+  if count == 0 then return #[]
+  let (_, scores) ← queryScores idx goal options
+  let mut candidates : Array (String × Float) := #[]
+  for (i, score) in scores do
+    let e := idx.artifact.declarations[i]!
+    unless idx.eligibleNames.contains e.name do continue
+    candidates := candidates.push (e.name, score / lengthPenalty idx options e.symbols.size)
+  candidates := candidates.qsort fun a b =>
+    if a.2 == b.2 then a.1 < b.1 else a.2 > b.2
+  return (candidates.take count).map (·.1.toName)
+
+/-- Sparse weighted symbol overlap, filtered against the *current* environment
+and caller before truncating. Scores are normalized overlap, not calibrated probabilities. -/
+def Index.selector (idx : Index) (options : QueryConfig := {}) : Selector := fun goal cfg => do
+  if cfg.maxSuggestions == 0 then return #[]
+  let (query, scores) ← queryScores idx goal options
   let env ← getEnv
   -- Rank using artifact data first. Running MetaM filters on every posting is
   -- unnecessary: scan the ranked list until enough available premises pass.

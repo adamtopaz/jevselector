@@ -1,4 +1,4 @@
-"""Prepare a proof-free sparse index for any Lean library, optionally excluding holdouts."""
+"""Prepare sparse statement and optional proof-dependency indexes for Lean libraries."""
 
 import argparse
 from collections import Counter
@@ -14,6 +14,7 @@ import sys
 import time
 
 from .resources import DEFAULT_LIMIT, ensure_bounded, resource_snapshot
+from .dependencies import fit_dependencies
 
 
 def sha(data):
@@ -208,10 +209,78 @@ def prepare(args):
 
 def verify(args):
     output = args.directory
-    expected = (output / "index.sha256").read_text().split()[0]
-    if sha((output / "index.json").read_bytes()) != expected:
-        raise ValueError("artifact checksum mismatch")
+    names = [name for name in ["index", "dependencies"] if (output / f"{name}.json").exists()]
+    if not names:
+        raise ValueError("directory contains no recognized selector artifact")
+    for name in names:
+        expected = (output / f"{name}.sha256").read_text().split()[0]
+        if sha((output / f"{name}.json").read_bytes()) != expected:
+            raise ValueError(f"artifact checksum mismatch: {name}")
     print("Artifact SHA-256 verified")
+
+
+def dependencies(args):
+    resources = ensure_bounded(args)
+    start = time.monotonic()
+    project, output = args.project.absolute(), args.output.absolute()
+    output.mkdir(parents=True, exist_ok=False)
+    (output / ".jevselector-output").touch()
+    index_bytes = args.index.read_bytes()
+    statements = json.loads(index_bytes)
+    modules = sorted(set(map(name, args.modules)))
+    report = {"schema": 1, "status": "running", "resources": {"initial": resources}}
+    write_json(output / "report.json", report)
+    code_paths = [Path(__file__), Path(__file__).with_name("dependencies.py")]
+    code_hashes = {p.name: sha(p.read_bytes()) for p in code_paths}
+    try:
+        process(["lake", "build", "JevSelector.ProofDependencies", *modules], project,
+                output / "build.log", timeout=args.timeout)
+        snapshot = source_snapshot(project)
+        source = ("import JevSelector.ProofDependencies\n"
+                  + "".join(f"import {module}\n" for module in modules)
+                  + "\n#jevselector_dependencies\n")
+        (output / "Dependencies.lean").write_text(source)
+        config = output / "export.json"
+        write_json(config, {"index": str(args.index.absolute()),
+                            "output": str(output / "dependencies.jsonl")})
+        env = dict(os.environ, JEVSELECTOR_DEPENDENCY_CONFIG=str(config),
+                   LEAN_NUM_THREADS=str(args.threads))
+        lean_file(project, output / "Dependencies.lean", output / "extract.log", env,
+                  args.timeout, [f"-j{args.threads}", "-M0", "-DmaxHeartbeats=0"],
+                  "JevSelectorDependencyPreparation")
+        with (output / "dependencies.jsonl").open() as handle:
+            artifact = fit_dependencies((json.loads(line) for line in handle), statements)
+        if args.index.read_bytes() != index_bytes:
+            raise RuntimeError("statement index changed during dependency extraction")
+        if code_hashes != {p.name: sha(p.read_bytes()) for p in code_paths}:
+            raise RuntimeError("dependency preparation code changed during extraction")
+        if source_snapshot(project) != snapshot:
+            raise RuntimeError("project sources changed during dependency extraction")
+        recipe = {"algorithm": "direct-proof-neighbors-v1", "modules": modules,
+                  "proofInformation": "direct public-theorem references in eligible proof values",
+                  "excludedProofBodies": "never read", "helperProofBodies": "never traversed",
+                  "labelStatistics": "eligible examples only"}
+        artifact["provenance"] = {
+            "recipe": recipe, "statementIndexSha256": sha(index_bytes),
+            "statementProvenance": statements["provenance"],
+            "preparationCodeSha256": code_hashes, "snapshot": snapshot,
+        }
+        write_json(output / "dependencies.json", artifact)
+        checksum = sha((output / "dependencies.json").read_bytes())
+        (output / "dependencies.sha256").write_text(checksum + "  dependencies.json\n")
+        report.update(status="complete", dependenciesSha256=checksum,
+                      examples=len(artifact["examples"]), premises=len(artifact["premises"]),
+                      edges=sum(len(row["dependencies"]) for row in artifact["examples"]),
+                      artifactBytes=(output / "dependencies.json").stat().st_size,
+                      recipe=recipe)
+        print(f"Prepared {report['examples']} proof examples and {report['edges']} direct edges")
+    except BaseException as error:
+        report.update(status="incomplete", error=str(error))
+        raise
+    finally:
+        report["totalSeconds"] = time.monotonic() - start
+        report["resources"]["final"] = resource_snapshot()
+        write_json(output / "report.json", report)
 
 
 def profile(args):
@@ -225,7 +294,8 @@ def profile(args):
     (output / "Profile.lean").write_text(source)
     config = output / "config.json"
     write_json(config, {"index": str(args.index.absolute()), "output": str(output / "queries.json"),
-                        "samples": args.samples, "repeats": args.repeats, "method": args.method})
+                        "samples": args.samples, "repeats": args.repeats, "method": args.method,
+                        "dependencies": str(args.dependencies.absolute()) if args.dependencies else None})
     env = dict(os.environ, JEVSELECTOR_PROFILE_CONFIG=str(config), JEVSELECTOR_TRACE_LOAD="1")
     lean_file(project, output / "Profile.lean", output / "profile.log", env, args.timeout,
               [f"-j{args.threads}", "-M0", "-DmaxHeartbeats=0"], "JevSelectorProfile")
@@ -258,7 +328,8 @@ def main():
     p.add_argument("--project", type=Path, default=Path.cwd())
     p.add_argument("--modules", nargs="+", required=True)
     p.add_argument("--index", type=Path, required=True)
-    p.add_argument("--method", choices=["sparse", "target", "ensemble"], default="sparse")
+    p.add_argument("--method", choices=["sparse", "target", "ensemble", "neighbors", "proof-hybrid"], default="sparse")
+    p.add_argument("--dependencies", type=Path, help="dependency companion for proof-neighbor methods")
     p.add_argument("--output", type=Path, required=True)
     p.add_argument("--samples", type=int, default=32)
     p.add_argument("--repeats", type=int, default=3)
@@ -267,13 +338,26 @@ def main():
     p.add_argument("--memory-limit", type=int, default=DEFAULT_LIMIT)
     p.add_argument("--external-memory-limit", action="store_true")
     sub.add_parser("verify").add_argument("directory", type=Path)
+    p = sub.add_parser("dependencies")
+    p.add_argument("--project", type=Path, default=Path.cwd())
+    p.add_argument("--modules", nargs="+", required=True)
+    p.add_argument("--index", type=Path, required=True)
+    p.add_argument("--output", type=Path, required=True)
+    p.add_argument("--threads", type=int, default=2)
+    p.add_argument("--timeout", type=int, default=1800)
+    p.add_argument("--memory-limit", type=int, default=DEFAULT_LIMIT)
+    p.add_argument("--external-memory-limit", action="store_true")
     args = parser.parse_args()
     try:
         if args.command == "prepare":
             prepare(args)
+        elif args.command == "dependencies":
+            dependencies(args)
         elif args.command == "profile":
             if args.samples <= 0 or args.repeats <= 0:
                 raise ValueError("samples and repeats must be positive")
+            if args.method in {"neighbors", "proof-hybrid"} and args.dependencies is None:
+                raise ValueError("proof-neighbor profiling requires --dependencies")
             profile(args)
         else:
             verify(args)

@@ -13,3 +13,7 @@ name = "JevSelectorTests"
 [[lean_lib]]
 name = "SelectorFixture"
 srcDir = "tests/fixtures"
+
+[[lean_lib]]
+name = "ModernFixture"
+srcDir = "tests/fixtures"

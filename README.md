@@ -7,7 +7,7 @@ The preparation CLI uses Python's standard library and Lake. Selector modules
 are precompiled into native libraries using Lean's C toolchain.
 
 The initial algorithm indexes constants in theorem **types** and ranks weighted
-symbol overlap with the goal and local context. It never reads proof bodies.
+symbol overlap with the goal and local context. The statement index never reads proof bodies.
 This is an inspectable baseline for further experiments, **not yet a demonstrated
 replacement for the strongest neural-selector/JevHammer pipeline**.
 The library also supplies a configurable Sine Qua Non baseline using Lean's
@@ -61,6 +61,39 @@ request up to `maxCandidates`. Optional earlier current-file theorems (including
 private ones) are sorted by name and interleaved 1:1 with imported suggestions.
 No scores from different selectors are compared. See
 [baseline details](docs/sine-qua-non.md) for bounds and benchmark settings.
+
+## Experimental proof-neighbor selection
+
+The research branch has an optional CPU model that transfers dependencies from
+similar eligible theorem statements. It is under evaluation; it is not yet a
+demonstrated improvement over the neural reference. Prepare the statement index
+with the desired exclusions first, then create its dependency companion:
+
+```sh
+jevselector dependencies --modules MyLibrary --index artifacts/heldout/index.json \
+  --output artifacts/proof-neighbors --memory-limit 16000000000
+jevselector verify artifacts/proof-neighbors
+```
+
+Extraction reads only eligible owners' proof values. It records direct references
+to public theorems and does not recursively open private/helper proofs. Missing
+or incomplete eligible proof bodies are errors. Exclude unfinished declarations
+before preparation. A production index without exclusions uses the same command.
+
+In Lean, load the statement index once, then call
+`JevSelector.loadDependencies idx "artifacts/proof-neighbors/dependencies.json"`.
+The resulting model exposes `model.selector {}` and `model.hybridSelector {}` as
+standard Lean selectors; the hybrid combines dependency votes with sparse
+retrieval. Call `model.validateEnvironment` for warmup and
+`model.validateHoldouts owners` before evaluation. Querying needs no Python,
+proof-body access, neural model, or network call. JevHammer can use either
+selector through its ordinary `using` or `solve` interface.
+
+Training examples may come from the whole prepared library, including modules
+not imported at a query. Returned premises must be present in the actual Lean
+environment and obey the caller filter. Only eligible proofs contribute examples
+or label-frequency statistics. See the [experiment protocol](notes/experiment-02.md)
+for the fixed initial ranking and its limitations.
 
 ## Prepare any library
 
