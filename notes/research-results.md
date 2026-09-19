@@ -45,3 +45,30 @@ Fusion currently misses it; its coverage must justify further optimization.
 All methods reuse the existing preparation artifact, with no new training pass.
 Cold index loads were 3.8–4.3 seconds; the profile scope peaked at 6.64 GB with
 no memory limit/OOM events. These timings are not proof-coverage measurements.
+
+## Experiment 01: first paired proof improvement, objective still open
+
+Selector `7192e21`, identical 34 development locations and search settings:
+
+| Method | On-time verified | Retrieval time |
+|---|---:|---:|
+| Original sparse | 13/34 | 4.797 s |
+| Target-weighted | **14/34** | 4.849 s |
+| Rank fusion | 12/34 | 10.286 s |
+| Warmed neural reference | **14/34** | 10.675 s |
+
+Target gained one and lost none against sparse; it gained one and lost one
+against neural. Its paired interval against neural is −8.8 to +8.8 points, so
+this does not establish superiority. It also does not exceed the earlier
+15/34 neural observation under different conditions. Retain target weighting
+for broader testing; do not promote the slower fusion method.
+
+All 136 expected trials were recorded. Every one of the 54 raw successes
+independently replayed; fusion's one late proof does not count toward its 12
+on-time successes. The 16 GB zero-swap scope peaked at 9.47 GB without limit/OOM
+events. Full costs, errors, configurations, and outcomes are in the linked
+benchmark report. No reserved evaluation goals have been run.
+
+The next candidate transfers direct proof dependencies from eligible similar
+statements, with exclusions enforced before proof extraction. Its implementation
+is undergoing integration validation; no result is claimed yet.
