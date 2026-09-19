@@ -24,6 +24,14 @@ set the cap to zero for exhaustive lookup. The caller filter runs before the
 final maximum is applied. Scores are compressed into [0,1), not probabilities.
 Current-file supplementation uses the same type-only features.
 
+The research branch supports optional target/context weights and pivoted length
+normalization in `QueryConfig`. The latter's mean length is computed at load time
+using only `eligible` statement rows; excluded statements do not contribute.
+These options reuse schema 1 and do not change the default ranking. The selector
+configuration is a separate part of experiment provenance, in addition to the
+artifact identity. `Index.ensembleSelector` fuses the default and target-weighted
+rankings without fitting another artifact.
+
 `validateHoldouts` rejects any evaluated owner or named child present in eligible
 training rows. Owners absent from the exported scope did not contribute and are
 allowed. Non-theorem owning definitions cannot contribute proof information in

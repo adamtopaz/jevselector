@@ -225,7 +225,7 @@ def profile(args):
     (output / "Profile.lean").write_text(source)
     config = output / "config.json"
     write_json(config, {"index": str(args.index.absolute()), "output": str(output / "queries.json"),
-                        "samples": args.samples, "repeats": args.repeats})
+                        "samples": args.samples, "repeats": args.repeats, "method": args.method})
     env = dict(os.environ, JEVSELECTOR_PROFILE_CONFIG=str(config), JEVSELECTOR_TRACE_LOAD="1")
     lean_file(project, output / "Profile.lean", output / "profile.log", env, args.timeout,
               [f"-j{args.threads}", "-M0", "-DmaxHeartbeats=0"], "JevSelectorProfile")
@@ -234,6 +234,7 @@ def profile(args):
     if not timings:
         raise ValueError("no available profile statements")
     write_json(output / "summary.json", {"schema": 1, "kind": "query-latency-only",
+               "method": args.method,
                "loadMs": report["loadMs"], "queries": len(timings),
                "medianMs": timings[len(timings) // 2], "p95Ms": timings[min(len(timings)-1, int(len(timings)*.95))],
                "meanMs": sum(timings)/len(timings), "resources": {"initial": resources, "final": resource_snapshot()}})
@@ -257,6 +258,7 @@ def main():
     p.add_argument("--project", type=Path, default=Path.cwd())
     p.add_argument("--modules", nargs="+", required=True)
     p.add_argument("--index", type=Path, required=True)
+    p.add_argument("--method", choices=["sparse", "target", "ensemble"], default="sparse")
     p.add_argument("--output", type=Path, required=True)
     p.add_argument("--samples", type=int, default=32)
     p.add_argument("--repeats", type=int, default=3)

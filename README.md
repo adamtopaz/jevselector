@@ -13,6 +13,11 @@ replacement for the strongest neural-selector/JevHammer pipeline**.
 The library also supplies a configurable Sine Qua Non baseline using Lean's
 built-in retrieval algorithm, without any external preparation or service.
 
+The `research/cpu-selector` branch also contains experimental target-weighted
+retrieval and reciprocal-rank fusion. These are candidates under evaluation,
+not demonstrated improvements. See the [research protocol](notes/cpu-selector-research.md)
+and [first experiment](notes/experiment-01.md).
+
 ## Install
 
 Requires Lean **4.33.0**, Lake, and Python **3.10+** for preparation. Add to a
@@ -111,6 +116,13 @@ named selector for the `jev_hammer ... using mySelector` tactic. See the
 [benchmark integration](https://github.com/adamtopaz/jevhammer_benchmark/tree/main/integrations/selector)
 for a complete adapter with warmup and holdout admission.
 
+On the research branch, `idx.targetSelector` emphasizes symbols in the target;
+`idx.ensembleSelector {}` combines that ranking with the original sparse ranking.
+Both reuse the same index and standard selector interface. `JevSelector.fuse`
+also accepts other selector arrays. Constituent numeric scores need not be
+comparable, and each constituent runs with isolated Lean state. External IO
+cannot be rolled back. Importing the module does not register a global selector.
+
 `Index.validateHoldouts owners` rejects owners contributing to fitted statistics.
 Call it with **every evaluation owner** before benchmarking. Use
 `Index.validateEnvironment` during warmup to check available imported statements.
@@ -146,6 +158,10 @@ For repeatable CPU latency measurements (not proof coverage):
 ```sh
 jevselector profile --modules MyLibrary --index artifacts/full/index.json --output runs/profile
 ```
+
+Use `--method target` or `--method ensemble` to profile the research candidates.
+To enforce a 16 GB bound, append `--memory-limit 16000000000`. If other local
+services participate, place them and the CLI inside one shared bounded job.
 
 This measures cold loading and repeated queries on evenly spaced theorem types,
 excluding the query theorem itself. For quality measurements use JevHammer's

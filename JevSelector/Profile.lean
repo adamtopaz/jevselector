@@ -1,5 +1,5 @@
 module
-public meta import JevSelector.Index
+public meta import JevSelector.Ensemble
 public meta import Lean.Elab.Command
 public meta section
 namespace JevSelector
@@ -14,12 +14,18 @@ elab "#jevselector_profile" : command => do
   let output ← ofExcept (cfg.getObjValAs? String "output")
   let samples ← ofExcept (cfg.getObjValAs? Nat "samples")
   let repeats ← ofExcept (cfg.getObjValAs? Nat "repeats")
+  let method := (cfg.getObjValAs? String "method").toOption.getD "sparse"
   let start ← IO.monoMsNow
   let idx ← load indexPath
   let loadMs := (← IO.monoMsNow) - start
   IO.eprintln s!"JevSelector index loaded in {loadMs}ms"
   let timings ← liftTermElabM do
     idx.validateEnvironment
+    let selector ← match method with
+      | "sparse" => pure (idx.selector {})
+      | "target" => pure idx.targetSelector
+      | "ensemble" => pure (idx.ensembleSelector {})
+      | _ => throwError "JevSelector: unknown profiling method {method}"
     let mut rows := #[]
     let count := min samples idx.artifact.declarations.size
     for i in [:count] do
@@ -31,7 +37,7 @@ elab "#jevselector_profile" : command => do
         try
           let goal ← mkFreshExprMVar info.type
           let start ← IO.monoNanosNow
-          let result ← idx.selector {} goal.mvarId! { filter := fun n => pure (n != name) }
+          let result ← selector goal.mvarId! { filter := fun n => pure (n != name) }
           let elapsed := (← IO.monoNanosNow) - start
           rows := rows.push <| Json.mkObj [("name", toJson e.name),
             ("elapsedNanos", toJson elapsed), ("returned", toJson result.size)]
@@ -40,5 +46,6 @@ elab "#jevselector_profile" : command => do
     return rows
   IO.FS.writeFile output <| (Json.mkObj [("schema", toJson (1 : Nat)),
     ("kind", toJson "query-latency-only"), ("loadMs", toJson loadMs),
+    ("method", toJson method),
     ("queries", .arr timings), ("provenance", idx.artifact.provenance)]).compress
 end JevSelector

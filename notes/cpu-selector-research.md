@@ -78,3 +78,13 @@ comparison. Existing preparation and adapters are unchanged for that baseline.
 The historical local CPU deployment is used with immutable model/corpus pins
 and previously checked agreement with the precomputed embedding vectors.
 No claim of proof-disjoint third-party neural training is made.
+
+## Prior work informing later experiments
+
+[Hammer for Coq: Automation for Dependent Type Theory](https://pmc.ncbi.nlm.nih.gov/articles/PMC6044314/)
+describes sparse syntactic features, dependency labels, and nearest-neighbor /
+naive-Bayes premise selection. This motivates the proof-neighbor candidate above;
+it does not establish performance for this Lean implementation. A first Lean
+version should extract direct public-theorem references only from eligible proof
+bodies, without recursively opening auxiliary definitions, and test exclusions
+before any proof-dependent aggregate is constructed.

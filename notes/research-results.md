@@ -11,9 +11,17 @@ shared Jev calls. All **24 successful trials independently replayed**. Sparse
 gained three locations and lost one; its paired interval is −5.9 to +17.6 points,
 so this is not a significant improvement or a final held-out result.
 
-The second pre-registered neural baseline (without premise reranking) is still
-running. Target-weighted retrieval and rank fusion are implemented locally but
-not yet validated or benchmarked. The research objective remains unfulfilled.
+The second pre-registered neural baseline (without premise reranking) solved
+**15/34**, versus **14/34** for its fresh sparse control. All 29 successes
+independently replayed. Neural gained one and lost none; the paired interval for
+neural minus sparse is 0.0 to +8.8 points. It also benefited from the service
+embedding cache built by the first run, so the two neural scores are not a clean
+reranking ablation. The 15/34 configuration is the stronger observed reference
+for subsequent comparisons. Target-weighted retrieval and rank fusion passed
+the Python preparation tests and Lean integration checks, including holdout
+statistics, filtering, deduplication, and state isolation. They are not yet
+benchmarked. Their implementation preserves the default sparse algorithm.
+The research objective remains unfulfilled.
 
 [Benchmark report and evidence](https://github.com/adamtopaz/jevhammer_benchmark/blob/research/cpu-selector/docs/cpu-selector-research-results.md).
 The historical local runtime had to be restored from the Nix binary cache before
