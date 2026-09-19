@@ -71,11 +71,14 @@ def load (path : System.FilePath) : IO Index := do
   progress "postings ready"
   return { artifact, postings, weights, trainingOwners }
 
-/-- Validate all available catalog statements during goal-independent warmup.
-Unavailable statements are allowed: an artifact can cover more than a source goal's imports. -/
+/-- Validate imported catalog statements during goal-independent warmup.
+Unavailable statements are allowed: an artifact can cover more than a source goal's imports.
+Current-file declarations use live features instead: fresh elaboration can change
+auxiliary names or instance terms, and the file may have been edited since preparation. -/
 def Index.validateEnvironment (idx : Index) : MetaM Unit := do
   let env ← getEnv
   for e in idx.artifact.declarations do
+    if env.constants.map₂.contains e.name.toName then continue
     if let some info := env.find? e.name.toName then
       unless (hash info.type).toNat == e.typeHash do
         throwError "JevSelector: incompatible statement {e.name}; prepare again"
@@ -92,6 +95,8 @@ structure QueryConfig where
   /-- Each symbol contributes at most this many postings, sampled evenly.
 Zero means exhaustive postings. This bounds common-symbol work deterministically. -/
   maxPostingsPerSymbol : Nat := 20000
+  /-- Recompute current-file theorem features from the live environment, including
+  declarations already present in the prepared catalog. -/
   includeCurrentFile : Bool := true
 
 private def goalSymbols (goal : MVarId) : MetaM (Array Name) := goal.withContext do
@@ -120,15 +125,16 @@ def Index.selector (idx : Index) (options : QueryConfig := {}) : Selector := fun
   -- Rank using artifact data first. Running MetaM filters on every posting is
   -- unnecessary: scan the ranked list until enough available premises pass.
   let mut candidates : Array (String × Float × Nat) := #[]
-  let mut used : Std.HashSet String := {}
   for (i, score) in scores do
     let e := idx.artifact.declarations[i]!
-    used := used.insert e.name
+    -- Never use stale catalog features/hashes for declarations elaborated here.
+    -- The option below also excludes cataloged current-file premises when false.
+    if env.constants.map₂.contains e.name.toName then continue
     candidates := candidates.push (e.name,
       score / Float.sqrt (max 1 e.symbols.size).toFloat, e.typeHash)
   if options.includeCurrentFile then
     for (name, info) in env.constants.map₂ do
-      if used.contains name.toString || !wasOriginallyTheorem env name then continue
+      if !wasOriginallyTheorem env name then continue
       let features := symbols info.type
       let score := query.foldl (fun acc s =>
         if features.contains s then acc + idx.weights.getD s 1 else acc) 0

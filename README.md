@@ -113,10 +113,13 @@ for a complete adapter with warmup and holdout admission.
 
 `Index.validateHoldouts owners` rejects owners contributing to fitted statistics.
 Call it with **every evaluation owner** before benchmarking. Use
-`Index.validateEnvironment` during warmup to check all available statements.
-Querying always checks availability, caller filters, and candidate type hashes.
-It supplements the artifact with earlier current-file theorems, deduplicates,
-and obeys `maxSuggestions`. Unavailable later theorems cannot be returned.
+`Index.validateEnvironment` during warmup to check available imported statements.
+Querying always checks availability, caller filters, and imported candidate type hashes.
+Current-file theorems use their live statement features, even when the prepared
+catalog contains the same names. This supports edited files and fresh elaborations
+with different auxiliary names or instance terms. Set `includeCurrentFile := false`
+to exclude these premises entirely. The selector deduplicates and obeys
+`maxSuggestions`. Unavailable later theorems cannot be returned.
 
 ## Resources, artifacts, and tests
 
