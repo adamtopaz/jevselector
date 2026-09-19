@@ -71,4 +71,29 @@ benchmark report. No reserved evaluation goals have been run.
 
 The next candidate transfers direct proof dependencies from eligible similar
 statements, with exclusions enforced before proof extraction. Its implementation
-is undergoing integration validation; no result is claimed yet.
+passed integration validation; no proof-coverage result is claimed yet.
+
+## Experiment 02: dependency preparation and CPU cost
+
+Implementation `ca390e5` passed 11 Python tests plus native Lean exclusion,
+availability, state/filter, compatibility, and profiling checks under the 16 GB
+cap. The same extraction API works for legacy and modern-module libraries.
+
+Full-Mathlib preparation reused the excluded statement index and took **282.25 s**
+to create **254,885 eligible proof examples**, **1,536,554 direct edges**, and
+**145,736 labels**. The companion is **65.17 MB**; preparation peaked at **8.01 GB**
+with no limit/OOM events. This is a CPU-only fitting pass, with no Jev calls or
+neural model. It never traverses excluded proof values or referenced helper bodies.
+
+On the same 32 theorem types × 3 repetitions used for the first CPU profiles:
+
+| Method | Median | p95 |
+|---|---:|---:|
+| Direct proof-neighbor votes | 45.0 ms | 95.4 ms |
+| Sparse + proof-neighbor fusion | 164.5 ms | 278.1 ms |
+
+Direct voting meets the provisional query-cost target; fusion misses it.
+Combined index/model loading took 6.35–7.89 s. The profile scope peaked at 2.81 GB
+with no memory events. These are cost measurements, not verified proof gains.
+The next paired pilot retains target-weighted retrieval and the warmed neural
+reference; the reserved evaluation split remains untouched.

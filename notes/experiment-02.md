@@ -29,7 +29,7 @@ goal environment and obey the caller filter. All tie-breaking is deterministic.
 Screen direct proof-neighbor retrieval and reciprocal-rank fusion of it with
 original sparse retrieval (offset 16, twice the requested pool, cap 256). Keep
 the same Jev-guided search, tactic set, and six-second budget. Compare against
-fresh sparse and warmed neural references on the existing development cohort;
+the strongest inexpensive candidate and a fresh warmed neural reference on the existing development cohort;
 do not inspect the reserved evaluation split. Record CPU preparation/inference
 costs and full verified coverage. No theorem-specific ranking rules are allowed.
 
@@ -43,3 +43,13 @@ premise availability, changed statement hashes, zero result limits, and caller
 filters. Both legacy imports and modern `module` libraries expose direct proof
 references to the extraction command. A private helper fixture confirms that
 its body is never opened. The full suite runs in a 16 GB, zero-swap cgroup.
+
+Full-library preparation completed on 2026-09-19 with selector `ca390e5`:
+254,885 eligible proofs, 1,536,554 direct edges, and 145,736 distinct labels.
+The 65,171,865-byte companion took 282.25 seconds to prepare, including build,
+extraction, fitting, and source checks. The shared 16 GB zero-swap cgroup peaked
+at 8,014,503,936 bytes with no limit/OOM events. All 188 broad-benchmark owners
+remain excluded through the linked statement index. This is preparation evidence,
+not a proof-coverage result. The pilot will retain target-weighted retrieval as
+its inexpensive reference following that method's first-screen gain over sparse;
+this choice was made before any proof-neighbor trial.
