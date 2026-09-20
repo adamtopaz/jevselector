@@ -244,12 +244,19 @@ matches get twice the specificity weight of backward matches; each name receives
 only its strongest match. `StructuralConfig` bounds distinct visited expressions
 (256), pattern queries (64), traversal depth (8), and propositional hypotheses
 (8), in addition to the total heartbeat limit. Duplicate subexpressions are
-visited once. The same availability, state, and cache-isolation rules apply.
+visited once, including application function heads and arguments. The same
+availability, state, and cache-isolation rules apply.
 Profile this mode with `--method rewrites` or sparse fusion with
 `--method rewrites-target`. Native boundary tests and fixture profiles pass.
-Full-Mathlib profiling measured 16.2 ms median / 92.2 ms p95, with about 28 s
-initialization; sparse fusion measured 180.0 / 299.0 ms. Proof coverage remains
-unmeasured. Its
+Use `--method structural-rewrites` for conclusion/rewrite fusion and
+`--method structural-rewrites-target` to add the sparse target source. These use
+flat rank fusion, initialize both signature indexes, and record their combined
+initialization cost separately. Profiles explicitly request and report 100
+suggestions. Full-Mathlib profiling of the earlier `ae41248` implementation
+measured 16.2 ms median / 92.2 ms p95, with about 28 s initialization; sparse
+fusion measured 180.0 / 299.0 ms. Those timings precede the application-head
+traversal correction and are not measurements of the combined modes. Proof
+coverage remains unmeasured. Its
 [design note](notes/experiment-08-design.md) records the fixed recipe.
 
 `Index.validateHoldouts owners` rejects owners contributing to fitted statistics.

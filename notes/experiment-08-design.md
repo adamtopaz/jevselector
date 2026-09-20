@@ -73,3 +73,45 @@ to `b8b0a95`. The profile used no model calls or proof trials. Rewrite-only cost
 meet the provisional query target; fusion exceeds the 200 ms p95 target. Proof
 coverage remains unmeasured. Complete measurements are in the benchmark repo's
 `docs/cpu-selector-profile-rewrites-v1.json`.
+
+The next comparison should preserve the successful conclusion matcher while
+adding rewrite-pattern candidates. Use a flat reciprocal-rank fusion of sparse,
+conclusion, and rewrite rankings (offset 16, pool factor 2, maximum pool 256).
+Give the neural reference the same added source. A cheaper conclusion/rewrite
+fusion without the fitted sparse index is also a useful ablation. Before proof
+trials, profile both combined paths on the existing fixed query types; two
+signature indexes increase initialization and memory, so the previously measured
+single-index timings cannot stand in for their combined cost. The profiling CLI
+extensions are drafted separately while the reranking benchmark remains pinned.
+
+Profile queries explicitly request 100 suggestions, matching the proof benchmark
+and Lean 4.33's existing selector default. Record that limit in new profile
+outputs so this assumption is visible even after library defaults change. This
+does not change the request size of any previously published measurement.
+
+For the next proof screen, compare current CPU fusion, CPU fusion plus rewrites,
+signature-only conclusion/rewrite fusion, current neural fusion, and neural
+fusion plus rewrites. Choose each source's premise-reranking flag from the
+completed matched-warmup experiment by highest on-time replayed coverage, breaking
+ties by total goal time. Keep that flag identical for the source and its rewrite
+variant; signature-only uses the CPU flag. Freeze the choices before collection.
+Use flat fusion with the same parameters in both three-source variants, and
+independent mutable caches for every method. These control choices are development
+decisions, not evidence of superiority on reserved evaluation.
+
+A source-level traversal audit found that application arguments were visited but
+the function head itself was omitted. An equality between functions can rewrite
+that head without matching the entire application. Include the head among the
+bounded, deduplicated subexpressions and add a synthetic function-equality
+regression. This is a generic traversal correction, unrelated to any benchmark
+failure. It is drafted while the reranking run uses the old pinned package;
+validate it and remeasure the affected combined paths before deployment. Earlier
+rewrite-only measurements continue to describe their explicitly pinned version.
+
+The function-equality regression fails against the previously compiled selector
+with `application-head function equality omitted` and passes after rebuilding the
+traversal correction. Both native structural/rewrite suites, all 19 Python tests,
+and the three conclusion/fusion fixture profiles pass. The profiles use identical
+queries and report the explicit 100-suggestion bound. Validation peaked at
+304.38 MB with no memory events under 16 GB and zero swap. Full-library profiling
+of the corrected traversal and both combined modes is next, before proof trials.

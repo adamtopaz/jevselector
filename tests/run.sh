@@ -63,7 +63,7 @@ fi
 rg -q 'not an original theorem' "$scratch/rejected-definition-owner/extract.log"
 
 python -m jevselector profile --modules SelectorFixture --index "$scratch/prepared/index.json" --samples 3 --repeats 2 --output "$scratch/profile" "$@"
-for method in structural structural-target rewrites rewrites-target; do
+for method in structural structural-target rewrites rewrites-target structural-rewrites structural-rewrites-target; do
   python -m jevselector profile --modules SelectorFixture --index "$scratch/prepared/index.json" --method "$method" --samples 3 --repeats 2 --output "$scratch/profile-$method" "$@"
 done
 for method in neighbors proof-hybrid; do

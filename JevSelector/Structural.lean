@@ -139,6 +139,9 @@ private partial def rewriteMatches (lookup : Expr → MetaM (Array (Nat × Struc
       state.modify fun s => { s with queries := s.queries + 1, candidates := s.candidates ++ candidates }
     match e with
     | .app .. =>
+      -- Function equalities can rewrite an application head even when their
+      -- pattern does not match the fully applied expression.
+      rewriteMatches lookup options state e.getAppFn (depth + 1)
       for arg in e.getAppArgs do
         rewriteMatches lookup options state arg (depth + 1)
     | .proj _ _ arg => rewriteMatches lookup options state arg (depth + 1)

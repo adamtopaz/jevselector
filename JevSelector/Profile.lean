@@ -32,12 +32,18 @@ elab "#jevselector_profile" : command => do
     idx.validateEnvironment
     if let some model := dependencies then model.validateEnvironment
     if let some model := usage then model.validateEnvironment
+    let combined := method == "structural-rewrites" || method == "structural-rewrites-target"
     let structuralStart ← IO.monoMsNow
     let structural ← if method == "structural" || method == "structural-target" ||
-        method == "rewrites" || method == "rewrites-target" then do
+        method == "rewrites" || method == "rewrites-target" || combined then do
       let mode := if method == "rewrites" || method == "rewrites-target" then
         StructuralMode.rewrites else StructuralMode.conclusion
       let model ← StructuralIndex.create mode
+      model.warmup
+      pure (some model)
+    else pure none
+    let rewrites ← if combined then do
+      let model ← StructuralIndex.create .rewrites
       model.warmup
       pure (some model)
     else pure none
@@ -53,6 +59,13 @@ elab "#jevselector_profile" : command => do
       | "structural-target" | "rewrites-target" => match structural with
         | some model => pure (fuse #[idx.targetSelector, model.selector {}] {})
         | none => throwError "JevSelector: structural index was not initialized"
+      | "structural-rewrites" | "structural-rewrites-target" =>
+        match structural, rewrites with
+        | some conclusions, some rewriting =>
+          let sources := #[conclusions.selector {}, rewriting.selector {}]
+          pure <| fuse (if method == "structural-rewrites-target" then
+            #[idx.targetSelector] ++ sources else sources) {}
+        | _, _ => throwError "JevSelector: combined signature indexes were not initialized"
       | "ensemble" => pure (idx.ensembleSelector {})
       | "neighbors" => match dependencies with
         | some model => pure (model.selector {})
@@ -75,7 +88,8 @@ elab "#jevselector_profile" : command => do
         try
           let goal ← mkFreshExprMVar info.type
           let start ← IO.monoNanosNow
-          let result ← selector goal.mvarId! { filter := fun n => pure (n != name) }
+          let result ← selector goal.mvarId! {
+            maxSuggestions := 100, filter := fun n => pure (n != name) }
           let elapsed := (← IO.monoNanosNow) - start
           rows := rows.push <| Json.mkObj [("name", toJson e.name),
             ("elapsedNanos", toJson elapsed), ("returned", toJson result.size)]
@@ -85,6 +99,7 @@ elab "#jevselector_profile" : command => do
   IO.FS.writeFile output <| (Json.mkObj [("schema", toJson (1 : Nat)),
     ("kind", toJson "query-latency-only"), ("loadMs", toJson loadMs),
     ("structuralInitMs", toJson structuralInitMs),
+    ("maxSuggestions", toJson (100 : Nat)),
     ("method", toJson method),
     ("queries", .arr timings), ("provenance", idx.artifact.provenance)]).compress
 end JevSelector

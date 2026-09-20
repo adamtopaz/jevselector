@@ -8,6 +8,7 @@ axiom g : Nat → Nat
 axiom p : Nat → Prop
 axiom q : Nat → Prop
 axiom bridge (n : Nat) : f n = g n
+axiom functionBridge : f = g
 axiom reverseBridge (n : Nat) : g n = f n
 axiom equivalence (n : Nat) : p n ↔ q n
 end RewriteFixture
@@ -36,6 +37,10 @@ run_cmd liftTermElabM do
   let result ← select goal
   unless result.map (·.name) == #[``RewriteFixture.bridge] do
     throwError "proper subexpression rewrite omitted or repeated"
+  let functionResult ← idx.selector {} goal.mvarId! {
+    filter := fun n => pure (n == ``RewriteFixture.functionBridge) }
+  unless functionResult.map (·.name) == #[``RewriteFixture.functionBridge] do
+    throwError "application-head function equality omitted"
   if ← goal.mvarId!.isAssigned then throwError "rewrite query assigned caller goal"
   let backward ← mkFreshExprMVar (mkApp (mkConst ``RewriteFixture.p) g)
   unless (← select backward).map (·.name) == #[``RewriteFixture.bridge] do

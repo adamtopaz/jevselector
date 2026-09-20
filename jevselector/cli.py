@@ -378,6 +378,7 @@ def profile(args):
                "method": args.method,
                "loadMs": report["loadMs"], "queries": len(timings),
                "structuralInitMs": report.get("structuralInitMs", 0),
+               "maxSuggestions": report.get("maxSuggestions", 100),
                "medianMs": timings[len(timings) // 2], "p95Ms": timings[min(len(timings)-1, int(len(timings)*.95))],
                "meanMs": sum(timings)/len(timings), "resources": {"initial": resources, "final": resource_snapshot()}})
     print((output / "summary.json").read_text())
@@ -401,7 +402,7 @@ def main():
     p.add_argument("--project", type=Path, default=Path.cwd())
     p.add_argument("--modules", nargs="+", required=True)
     p.add_argument("--index", type=Path, required=True)
-    p.add_argument("--method", choices=["sparse", "target", "closing-target", "structural", "structural-target", "rewrites", "rewrites-target", "ensemble", "neighbors", "proof-hybrid", "usage"], default="sparse")
+    p.add_argument("--method", choices=["sparse", "target", "closing-target", "structural", "structural-target", "rewrites", "rewrites-target", "structural-rewrites", "structural-rewrites-target", "ensemble", "neighbors", "proof-hybrid", "usage"], default="sparse")
     p.add_argument("--dependencies", type=Path, help="dependency companion for proof-neighbor methods")
     p.add_argument("--usage", type=Path, help="learned premise-usage companion")
     p.add_argument("--output", type=Path, required=True)
