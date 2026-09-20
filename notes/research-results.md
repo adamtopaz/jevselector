@@ -564,3 +564,33 @@ base selector and excluding actual Jev latency. Median payload size grew
 200 ms p95 target, a tradeoff to report explicitly. It establishes no better
 proof coverage. The next small comparison is specified in
 `notes/graph-neighborhood-evidence.md`; all reserved proof trials remain zero.
+
+## Destination-preview proof screen: no promotion
+
+The frozen five-arm comparison completed **170 trials** at the unchanged 34
+development locations, and all **71 successes independently replayed**. CPU
+control solved **16/34**, original graph **14/34**, preview graph **14/34**, neural
+native **13/34**, and neural reranked **14/34**. None were late or budget-blocked.
+Previews gained one and lost one against original graph and neural reranked,
+with paired 95% intervals **−8.82 to +8.82 points**. They gained none and lost two
+against CPU. The frozen promotion rule failed; no broader graph proof run follows.
+
+Previews strongly changed direction choices: original graph selected eight
+forward and 322 backward directions, versus 306 forward and 58 backward with
+previews. Empty selected neighborhoods fell 44 → 7. Every one of the 49 selector
+responses per graph arm was parseable. These aggregate observations demonstrate
+changed traversal, not improved proof coverage. No failed goal was inspected.
+
+Retrieval seconds were **5.929 / 29.418 / 35.916 / 12.025 / 11.183** in table
+order above. Both graph arms spent 49 selector calls and made 24 proof-state
+calls; CPU made 42 state calls. The added model work remains a cost without a
+coverage gain in this screen. The next isolated hypothesis defers premise
+guidance until a timed base-premise finishing pass has failed, applying the same
+scheduling opportunity to CPU and neural selectors.
+
+All eight API/ranking failures remain included. The run used 306 requests and
+2,609,654 reported input tokens, with one unknown-usage request. Peak RAM was
+**11.36 GB**, no memory events, zero swap, and services stopped after replay.
+All 122 reserved evaluation sites remain unused for proof trials. Full evidence
+is in the benchmark repository's `docs/cpu-selector-graph-preview-v1.json` and
+companion trial file. Pins: benchmark `21206ba`, selector `397bef6`, hammer `2e3df66`.
