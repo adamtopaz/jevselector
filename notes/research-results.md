@@ -311,3 +311,42 @@ The frozen rule selects CPU fusion and neural fusion for experiment 09's matched
 warmup reranking check. That test must precede any final superiority claim.
 Experiment 08's bounded rewrite mode remains separate; it has passed native
 tests and fixture profiles, but its full-library costs and proof value are pending.
+
+## Experiment 09: matched-warmup premise reranking
+
+The four-arm comparison completed **136 trials** at the same 34 development
+locations. All **57 successful proofs independently replayed**; one neural-reranked
+proof was late and is excluded from coverage. CPU fusion in native order solved
+**16/34**, CPU fusion with Jev premise reranking **13/34**, neural fusion in native
+order **13/34**, and reranked neural fusion **14/34** on time. Selector `b8b0a95`
+and benchmark `2a5fffb` retained the same six-second, three-call budgets and Jev
+state guidance. Imported and earlier current-file neural statement embeddings were
+warmed outside goal timing; goal embeddings remained timed.
+
+CPU native order gained three and lost none against CPU reranking. Against the
+stronger reranked neural arm it gained three and lost one, an observed **+5.9
+points** with paired 95% interval **−2.94 to +17.65 points**. This exposed pilot
+does not establish superiority. The earlier 134-location result still supplies
+the broader evidence, where CPU fusion did not beat neural fusion. No reserved
+evaluation location has been tried.
+
+Goal/retrieval totals in seconds were **116.441/6.728**, **137.314/6.532**,
+**125.498/11.889**, and **139.348/11.773**, respectively. Native CPU/neural arms
+made **42/46 state-ranking calls** and no premise calls; reranked arms made
+**49/50 premise calls** and **24/23 state calls**. Reported input tokens were
+**240,565 / 1,064,223 / 291,528 / 1,118,159**. Reranking spent roughly four times
+the input tokens and left fewer calls for state guidance; this experiment does
+not distinguish ranking quality from that budget tradeoff.
+
+All **7 ranking/API errors** are retained (2/3/2/0). There were **234 requests**,
+**2,714,475 reported input tokens**, **184,811 output tokens**, and one request of
+unknown usage. Peak was **11.01 GB**, with no memory events under **16 GB and zero
+swap**. There were no budget-blocked trials. Services stopped after replay.
+
+The frozen rule for the next rewrite-source screen selects **native CPU order**
+and **Jev-reranked neural order** by on-time verified coverage. Each source and its
+rewrite variant will share that setting; the signature-only ablation uses the CPU
+setting. This is a development choice, not a claim that either flag is optimal
+on unseen goals. Full configurations, calls, costs, intervals, and all outcomes
+are published in the benchmark repository's `docs/cpu-selector-rerank-v1.json`
+and companion trial file. The research goal remains open.
