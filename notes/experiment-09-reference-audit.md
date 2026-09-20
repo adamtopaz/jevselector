@@ -27,7 +27,11 @@ comparison with matched initialization and two factors:
 
 Choose the CPU source from the completed full-development comparison: highest
 on-time replayed coverage, with lower retrieval cost breaking a tie. Freeze that
-choice before collecting this next comparison. Use the existing 34-location
+choice before collecting this next comparison. Apply the same rule to the two
+neural arms (plain warmed neural versus neural plus structural retrieval), so
+the next ablation retains the stronger measured neural configuration. If a
+structural source is selected, isolate mutable query caches between its native
+and reranked variants. Use the existing 34-location
 development pilot for screening, all its locations retained. No reserved
 evaluation outcome may influence the choice. If this establishes a stronger
 neural reference, carry it forward into the larger matched comparison before
