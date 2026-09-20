@@ -450,3 +450,39 @@ hypothesis is whether the posting cap distorts Bayes retrieval, as described in
 `notes/bayes-approximation-audit.md`. Full-Mathlib cost and aggregate ranking
 change measurements must precede another proof screen; exact ranking alone is
 not proof-quality evidence. The significant-improvement goal remains open.
+
+## Experiment 10 follow-up: exhaustive postings, no improvement
+
+All **204 trials** at the same 34 development locations completed under frozen
+benchmark `c48b636` and selector `e793bad`. All **81 successful proofs replayed**,
+with none late. CPU control solved **16/34**, sampled Bayes **12/34**, exhaustive
+Bayes **10/34**, sparse/sampled Bayes **15/34**, sparse/exhaustive Bayes **13/34**,
+and neural control **15/34**. Exhaustive postings preserve the stored top-64
+feature cap; they do not make the training artifact unpruned.
+
+Each exhaustive candidate lost two successes versus its sampled counterpart
+and gained none. Sparse/exhaustive Bayes, the strongest exhaustive candidate,
+lost three versus CPU control and gained none. No candidate meets the frozen
+promotion rule. CPU control gained three and lost two versus neural control:
+**+2.94 percentage points**, with paired declaration-bootstrap 95% interval
+**−8.82 to +14.71 points**. This exposed pilot establishes no superiority.
+The strongest broader results remain CPU **63/134**, neural **63/134**, and
+neural/conclusion fusion **64/134**. The CPU selector remains competitive and
+cheaper to query; it has not achieved the research goal of a significant
+coverage improvement over the strongest neural configuration.
+
+Goal/retrieval totals in seconds, in the above order, were **118.964/7.312**,
+**134.171/6.776**, **138.802/6.967**, **119.922/13.437**, **124.027/13.761**, and
+**136.692/12.155**. State-ranking calls were **42/53/54/48/50/22**; only neural
+made premise-ranking calls (**49**). All **ten ranking/API failures** remain
+included (1/2/1/4/2/0). There were **318 requests**, **2,306,014 reported input
+tokens**, **116,993 output tokens**, and **six unknown-usage requests**. No
+trials were budget-blocked. Peak aggregate memory was **9,724,121,088 bytes**,
+with no memory events under **16 GB and zero swap**. Services stopped after
+replay; all **122 reserved evaluation locations remain untouched**.
+
+All configurations, outcomes, and provenance are published in the benchmark
+repository's `docs/cpu-selector-bayes-exact-v1.json` and companion trial file.
+The next hypothesis is Jev-guided traversal of signature dependencies through
+the shared search budget, described in `notes/jev-guided-traversal-budget.md`.
+Its current draft has not yet passed native tests or established proof quality.
