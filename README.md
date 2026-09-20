@@ -230,8 +230,9 @@ rank rather than probabilities. CPU profiles accept `--method structural` and
 `--method structural-target`; `structuralInitMs` records creation plus fixed warmup
 separately from artifact loading and query time. The profile's statement index is
 used to choose repeatable query types; pure structural retrieval does not fit it.
-Native and fixture-profile validation passes on the research branch. Full-library
-costs and proof coverage remain unmeasured; there is no demonstrated coverage gain.
+Native validation and full-Mathlib timing profiles pass on the research branch;
+see [research results](notes/research-results.md) for initialization and query
+costs. Proof coverage remains unmeasured; there is no demonstrated coverage gain.
 
 `Index.validateHoldouts owners` rejects owners contributing to fitted statistics.
 Call it with **every evaluation owner** before benchmarking. Use
