@@ -16,6 +16,18 @@ json.dump(value, open(sys.argv[2], "w"))
 PY
 JEVSELECTOR_TEST_INDEX="$scratch/legacy-index.json" lake env lean JevSelectorTests.lean
 JEVSELECTOR_TEST_INDEX="$scratch/prepared/index.json" lake env lean EnsembleTests.lean
+python - <<'PY'
+import os, signal, subprocess
+job = subprocess.Popen(["lake", "env", "lean", "AsyncFusionTests.lean"], start_new_session=True)
+try:
+    status = job.wait(timeout=30)
+except subprocess.TimeoutExpired:
+    os.killpg(job.pid, signal.SIGKILL)
+    job.wait()
+    raise
+if status:
+    raise SystemExit(status)
+PY
 python -m jevselector dependencies --modules SelectorFixture --index "$scratch/prepared/index.json" --output "$scratch/dependencies" "$@"
 python -m jevselector verify "$scratch/dependencies"
 JEVSELECTOR_TEST_INDEX="$scratch/prepared/index.json" JEVSELECTOR_TEST_DEPENDENCIES="$scratch/dependencies/dependencies.json" lake env lean DependencyTests.lean

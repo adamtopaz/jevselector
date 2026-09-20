@@ -226,7 +226,9 @@ evaluation goals.
 
 Combine it with sparse retrieval using
 `JevSelector.fuse #[idx.targetSelector, model.selector {}]`. Numeric scores encode
-rank rather than probabilities. CPU profiles accept `--method structural` and
+rank rather than probabilities. Fusion checks candidate eligibility from live
+signatures, so that check does not wait for unfinished theorem bodies. Constituent
+selectors remain responsible for their own access behavior. CPU profiles accept `--method structural` and
 `--method structural-target`; `structuralInitMs` records creation plus fixed warmup
 separately from artifact loading and query time. The profile's statement index is
 used to choose repeatable query types; pure structural retrieval does not fit it.

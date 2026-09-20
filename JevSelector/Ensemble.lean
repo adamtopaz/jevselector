@@ -31,7 +31,9 @@ def fuse (selectors : Array Selector) (options : FusionConfig := {}) : Selector 
     let mut seen : Std.HashSet Name := {}
     let mut rank := 0
     for s in candidates.take pool do
-      if seen.contains s.name || !env.contains s.name || isDeniedPremise env s.name then continue
+      if seen.contains s.name || !env.contains s.name then continue
+      let some info := env.findConstVal? s.name | continue
+      if isDeniedSignature env s.name info.type then continue
       let beforeFilter ← saveState
       let allowed ← try cfg.filter s.name finally beforeFilter.restore
       unless allowed do continue

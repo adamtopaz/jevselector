@@ -38,23 +38,10 @@ structure StructuralConfig where
   maxDepth : Nat := 8
   maxHypotheses : Nat := 8
 
-/-- Signature-only adaptation of Lean 4.33's `LibrarySuggestions.isDeniedPremise`
-(Apache-2.0, Lean FRO). Use the same public deny-list extensions without calling
-`Environment.find?`, which forces asynchronously elaborated theorem bodies. -/
-private def structuralDenied (env : Environment) (name : Name) (type : Expr) : Bool := Id.run do
-  if name == ``sorryAx || name.isInternalDetail || isInstanceReducibleCore env name ||
-      Lean.Linter.isDeprecated env name then return true
-  if (nameDenyListExt.getState env).any (fun p => name.anyS (· == p)) then return true
-  if let some moduleIdx := env.getModuleIdxFor? name then
-    if isDeniedModule env (env.header.moduleNames[moduleIdx.toNat]!) then return true
-  if let .const head _ := type.getForallBody.getAppFn then
-    if (typePrefixDenyListExt.getState env).any (·.isPrefixOf head) then return true
-  return false
-
 private def structuralEntry (mode : StructuralMode) (name : Name) (info : AsyncConstantInfo) :
     MetaM (Array (LazyDiscrTree.InitEntry StructuralPremise)) := do
   let type := info.toConstantVal.type
-  if structuralDenied (← getEnv) name type then return #[]
+  if isDeniedSignature (← getEnv) name type then return #[]
   let premise : StructuralPremise := { name, typeHash := hash type }
   if mode == .rewrites then
     -- Signature-only adaptation of Lean.Meta.Rewrites.addImport (Lean FRO,
@@ -196,7 +183,7 @@ def StructuralIndex.selector (idx : StructuralIndex) (options : StructuralConfig
         for (_, p) in candidates do
           if seen.contains p.name then continue
           let some info := env.findConstVal? p.name | continue
-          if structuralDenied env p.name info.type then continue
+          if isDeniedSignature env p.name info.type then continue
           unless hash info.type == p.typeHash do
             throwError "JevSelector: changed structural premise {p.name}; create a new index"
           let beforeFilter ← saveState
