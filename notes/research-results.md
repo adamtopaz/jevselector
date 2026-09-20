@@ -230,7 +230,39 @@ memory events. Artifact loading is reported separately; pure structural selectio
 requires no fitted model, and the profile uses that artifact only to choose queries.
 
 Fusion misses the provisional 200 ms p95 target; retain this cost explicitly in
-the first proof screen. No proof-quality result exists yet. Competing methods
-will use independent mutable structural caches copied from a fixed warmed base,
+the first proof screen. These timings alone establish no proof-quality gain.
+Competing methods use independent mutable structural caches copied from a fixed warmed base,
 so no method benefits from another method's evaluation-goal refinement. The copy
 isolation regression passes. Reserved evaluation remains unused.
+
+## Experiment 07: verified structural fusion pilot
+
+The five-arm screen completed all **170 trials**, and all **70 successful proofs
+independently replayed**. Public sparse + structural fusion solved **16/34**,
+public sparse **15/34**, structural-only **12/34**, warmed neural **14/34**, and
+neural + structural **13/34**. None were late or budget-blocked; no modules failed.
+The deployed selector was `b8b0a95`, benchmark `debb49f`, with fixed parameters.
+
+CPU fusion gained one and lost none against sparse, two and lost none against
+neural, and three and lost none against neural fusion. Against neural its paired
+declaration-bootstrap 95% interval is **0 to +14.7 percentage points**; against
+neural fusion, **0 to +17.6 points**. The observed +5.9-point gain over neural is
+promising but does not meet the significance requirement, and this pilot was
+already exposed during development. Advance the unchanged public sparse and
+fusion candidates to the full 134-location development comparison against both
+neural arms. Do not claim the research goal is complete.
+
+Goal/retrieval totals in seconds were **112.113/5.354** for public sparse,
+**126.089/0.666** for structural, **116.620/6.820** for CPU fusion,
+**120.828/10.321** for neural, and **126.641/12.245** for neural fusion.
+The separate full-library fusion query p95 remains above the provisional target.
+All **15 ranking/API failures** remain counted (6, 3, 3, 1, 2 by arm).
+There were **244 Jev requests**, **1,413,999 reported input tokens**, **34,304
+output tokens**, and **8** unknown-usage requests. Combined peak was **11.82 GB**,
+without memory events under the **16 GB zero-swap cap**; services stopped after
+replay. All 122 reserved evaluation locations remain untouched.
+
+Complete reproducible evidence is in the benchmark repository's
+`docs/cpu-selector-structural-v1.json` and companion trial file. A complementary
+bounded rewrite-pattern source is drafted separately in experiment 08; it was
+not part of this measured improvement.
