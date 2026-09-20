@@ -65,13 +65,14 @@ zero/fractional/default signature priors, held-out output labels, candidate-only
 definitions, input identity, admission-before-counting, pruning, determinism,
 empty libraries, and input immutability. These and the existing 19 Python tests
 pass. The fitter releases each label's raw counts as it emits its sparse record.
-No full-library preparation or proof trial has run for this candidate yet.
+Full-library preparation and CPU profiling are now complete; no proof trial has
+run for this candidate yet.
 
 The native integration uses a versioned header followed by one label record
 per line. Lean streams the file into an inverted index without
 retaining both a full per-label feature model and a second inverted copy, or one
 large JSON parse tree. Preserve checksum/provenance verification and exact input
-index identity. Its full-library memory and timing costs still need measurement.
+index identity. The full-library measurements below include cold loading.
 
 The public `bayes`, `verify`, and three `profile` modes are implemented. Queries
 use distinct goal/context constants with unit weights, keep every label's prior,
@@ -102,3 +103,37 @@ share one statement index. The previously prepared public-label artifact took
 Measure fresh dependency extraction and fitting, and add the recorded statement
 preparation cost when reporting the complete pipeline. Run CPU profiling before
 freezing a proof comparison; do not open reserved evaluation locations.
+
+## Full-library preparation and CPU costs
+
+Implementation `8b9ffbe` prepared theorem labels against the public statement
+index under one shared 16 GB, zero-swap scope. Fresh dependency extraction took
+**762.15 seconds**, with 254,885 eligible owners, 145,736 direct theorem labels,
+and 1,536,554 edges. Bayes fitting took **18.40 seconds**, producing **258,016
+profiles**, **7,587,133 feature edges**, and a **387,851,440-byte** JSONL artifact.
+Adding the earlier measured statement preparation of 232.66 seconds gives
+**1,013.21 seconds (16.9 minutes)** for the pipeline. This exceeds the provisional
+ten-minute training target; the previous 282-second extraction measurement used
+a different prepared statement index and source revision and is not substituted.
+
+Matched CPU profiles use the same 32 public statement types, three repeats,
+and 100 suggestions. Every query returned exactly 100 suggestions. These are
+latency measurements, not proof coverage.
+
+| Method | Median / p95 query ms | Cold load s | Conclusion initialization s |
+|---|---:|---:|---:|
+| Bayes | 116.35 / 127.26 | 18.759 | 0 |
+| Sparse + Bayes | 276.84 / 350.15 | 18.661 | 0 |
+| Sparse + conclusion + Bayes | 319.30 / 467.19 | 18.705 | 28.604 |
+| Sparse + conclusion control | 160.29 / 282.52 | 2.917 | 27.824 |
+
+The standalone model meets the provisional 200 ms p95 query target; the fused
+variants do not. The shared serial scope peaked at **9,770,303,488 bytes** with
+no memory events. No Jev requests or proof trials were made. The full report is
+in the benchmark repository's `docs/cpu-selector-profile-bayes-v1.json`.
+
+Next is the predeclared 34-location development screen with all three Bayes
+variants, the existing CPU control, and the strongest selected neural control.
+The extra fusion cost stays inside the shared proof-search clock. Report quality
+and cost together; do not infer a coverage gain from these profiles or redefine
+the speed targets. The 122 reserved evaluation locations remain untouched.
