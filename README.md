@@ -252,11 +252,12 @@ Use `--method structural-rewrites` for conclusion/rewrite fusion and
 `--method structural-rewrites-target` to add the sparse target source. These use
 flat rank fusion, initialize both signature indexes, and record their combined
 initialization cost separately. Profiles explicitly request and report 100
-suggestions. Full-Mathlib profiling of the earlier `ae41248` implementation
-measured 16.2 ms median / 92.2 ms p95, with about 28 s initialization; sparse
-fusion measured 180.0 / 299.0 ms. Those timings precede the application-head
-traversal correction and are not measurements of the combined modes. Proof
-coverage remains unmeasured. Its
+suggestions. Full-Mathlib profiling of `fab11ad` measured rewrite lookup at
+16.0 ms median / 75.1 ms p95, with 28.3 s initialization. Conclusion/rewrite
+fusion measured 67.1 / 200.2 ms; adding sparse retrieval measured 209.7 / 361.5 ms.
+Both combined modes took about 56 s to initialize, with a shared serial-profile
+peak of 5.14 GB. These are 32 fixed statement types with three repeats, not proof
+coverage, which remains unmeasured. Its
 [design note](notes/experiment-08-design.md) records the fixed recipe.
 
 `Index.validateHoldouts owners` rejects owners contributing to fitted statistics.

@@ -115,3 +115,17 @@ and the three conclusion/fusion fixture profiles pass. The profiles use identica
 queries and report the explicit 100-suggestion bound. Validation peaked at
 304.38 MB with no memory events under 16 GB and zero swap. Full-library profiling
 of the corrected traversal and both combined modes is next, before proof trials.
+
+Full-Mathlib profiles of committed `fab11ad` now completed on the same 32 public
+statement types × 3 repeats, with 100 suggestions. Rewrite-only lookup measured
+**15.99 ms median / 75.10 ms p95** with **28.28 s** initialization. The conclusion/
+sparse control measured **156.04 / 284.07 ms**, with **27.40 s** initialization.
+Conclusion/rewrite fusion measured **67.14 / 200.25 ms**, with **56.40 s**
+initialization; adding sparse retrieval measured **209.73 / 361.55 ms**, with
+**55.87 s** initialization. Artifact loading was separately **2.76–2.95 s**.
+The shared serial scope peaked at **5.14 GB** with no memory events under 16 GB
+and zero swap. No model or proof calls were made. Pure rewrite lookup meets the
+provisional 200 ms p95 target; the combined modes exceed it, marginally for
+signature-only and materially for the three-source fusion. Retain these costs
+when interpreting the upcoming proof screen rather than treating extra sources
+as free. The profile report records the exact binary overlay and checksums.
