@@ -81,3 +81,21 @@ are retained in local logs; no proof benchmark used the unvalidated version.
 
 Full-library cost profiling is next. This validation establishes no proof-coverage
 gain. Do not promote the structural candidate until matched proof evidence exists.
+
+Full-Mathlib profiling of `2270359` completed under the 16 GB cap on the same 32
+public statement types × 3 repeats for all methods. Public target measured
+**78.36 ms median / 144.66 ms p95**; structural retrieval **6.12 / 91.65 ms**;
+their rank fusion **159.67 / 289.05 ms**. Structural creation plus fixed `True`
+warmup took **27.54–27.56 s**. Artifact loading (needed for profile query sampling,
+and for sparse fusion) took **2.77–2.93 s** separately. The shared serial scope
+peaked at **4.71 GB**, without memory events. Pure structural lookup meets the
+provisional query-cost target; fusion exceeds it and must justify the extra cost
+through proof coverage. These are latency measurements, not proof results.
+
+For the live comparison, each structural method must get an independent mutable
+cache. Reusing one instance across methods would let later methods benefit from
+lazy refinement on the same evaluation goal. `StructuralIndex.freshCache` copies
+the fixed warmed tree into a new IO ref, sharing immutable preparation data but
+isolating subsequent lazy refinement. Native tests confirm that querying or
+clearing a copy leaves the base cache unchanged. Create all per-method copies from
+the fixed synthetic base before goal queries; do not copy a goal-warmed instance.

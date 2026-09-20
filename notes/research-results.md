@@ -217,3 +217,20 @@ zero-swap cap**. Services stopped after replay. Reserved evaluation remains unus
 Complete evidence is published as `cpu-selector-public-closure-v1.json` and its
 per-location trial file in the benchmark repository. The structural signature
 candidate is being validated next. The significant-improvement goal is still open.
+
+## Experiment 07: structural retrieval CPU profile
+
+The signature-only structural index is implemented and passes native boundary
+checks, the 19 Python tests, and fixture profiles. Full-Mathlib initialization plus
+fixed `True` warmup takes **27.54–27.56 s**. Across the same 32 public statement
+types × 3 repeats, structural lookup takes **6.12 ms median / 91.65 ms p95**, versus
+**78.36 / 144.66 ms** for public-target retrieval. Their rank fusion takes
+**159.67 / 289.05 ms**. The 16 GB zero-swap scope peaked at **4.71 GB**, with no
+memory events. Artifact loading is reported separately; pure structural selection
+requires no fitted model, and the profile uses that artifact only to choose queries.
+
+Fusion misses the provisional 200 ms p95 target; retain this cost explicitly in
+the first proof screen. No proof-quality result exists yet. Competing methods
+will use independent mutable structural caches copied from a fixed warmed base,
+so no method benefits from another method's evaluation-goal refinement. The copy
+isolation regression passes. Reserved evaluation remains unused.

@@ -13,6 +13,19 @@ end StructuralFixture
 run_cmd liftTermElabM do
   let idx ← StructuralIndex.create
   idx.warmup
+  let isolated ← idx.freshCache
+  let some originalTree ← idx.tree.get | throwError "missing initialized tree"
+  let pendingBefore := originalTree.tries.map (·.pending.size)
+  let probe ← mkFreshExprMVar (← inferType (mkConst ``Nat.add_comm))
+  let copyResult ← isolated.selector {} probe.mvarId! {
+    filter := fun n => pure (n == ``Nat.add_comm) }
+  unless copyResult.map (·.name) == #[``Nat.add_comm] do
+    throwError "independent structural cache could not retrieve"
+  let some originalAfter ← idx.tree.get | throwError "base cache disappeared"
+  unless originalAfter.tries.map (·.pending.size) == pendingBefore do
+    throwError "query refinement warmed another cache"
+  isolated.tree.set none
+  unless (← idx.tree.get).isSome do throwError "cache references are aliased"
   let goal ← mkFreshExprMVar (mkApp (mkConst ``StructuralFixture.P) (mkNatLit 7))
   let selected ← idx.selector {} goal.mvarId! {
     maxSuggestions := 2,

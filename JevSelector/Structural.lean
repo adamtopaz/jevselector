@@ -76,6 +76,13 @@ def StructuralIndex.create : MetaM StructuralIndex := do
     return { importedModules := env.header.moduleNames, tree := ← IO.mkRef (some tree) }
   finally saved.restore
 
+/-- Create an independent mutable cache starting from the current immutable tree.
+Lazy refinement of either instance cannot warm the other. For matched benchmarks,
+copy a fixed synthetically warmed base before any evaluation-goal queries. This
+shares preparation data; it does not change the imported-environment contract. -/
+def StructuralIndex.freshCache (idx : StructuralIndex) : IO StructuralIndex := do
+  return { idx with tree := ← IO.mkRef (← idx.tree.get) }
+
 /-- Signature-pattern matching, ranked by the number of non-wildcard matches.
 Ties use constant names for deterministic order; scores encode rank, not a fitted
 probability. Availability, type hashes, and caller filters are checked before

@@ -219,6 +219,10 @@ Candidate availability and statement hashes are checked before returning names.
 `model.warmup` uses the fixed query `True`; actual-goal lazy expansion remains part
 of query cost. Query work defaults to 10,000 heartbeats. Initialization is separate
 and its threads/memory are controlled by the surrounding Lean process/job.
+For competing methods in one process, call `model.freshCache` on a fixed warmed
+base before any goal queries. This shares immutable preparation data while giving
+each method independent lazy refinement; one method cannot warm another on its
+evaluation goals.
 
 Combine it with sparse retrieval using
 `JevSelector.fuse #[idx.targetSelector, model.selector {}]`. Numeric scores encode
