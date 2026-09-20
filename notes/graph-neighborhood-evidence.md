@@ -108,3 +108,37 @@ validation scope peaked at 890,617,856 bytes, with no memory events and no model
 calls. The report is `docs/graph-preview-validation.json`. Full-Mathlib native
 ordered-output equality and cost profiling are still required before freezing
 another proof screen. No preview proof trial has run.
+
+## Native full-library cost and compatibility checks
+
+Both serial native profiles completed under benchmark `3969df5`, using selector
+`397bef6`. The zero-preview version preserves all **384** prior ordered query
+results, callback/choice counts, payload sizes, and errors. The three-preview
+version preserves all **384** zero-preview ordered results and callback/choice
+counts; only the intended payload content and measured timings change. All modes
+have zero errors, and each of the 32 statement groups is stable across its three
+repeats. These are injected direction decisions, not actual Jev quality results.
+
+For three previews, no-expansion/forward/backward median costs are
+**247.59/243.03/247.80 ms**, with p95 **386.87/382.96/386.73 ms**, including the CPU
+base but excluding Jev latency. Corresponding zero-preview costs are
+**123.45/200.97/124.22 ms** median and **246.50/351.71/225.43 ms** p95. Median
+choice-plus-question payloads increase from **5,958.5 to 16,855.5 bytes**; the
+separate goal/context is not included in these byte counts. Preview generation
+requires considering both directions before model selection, including when
+no expansion is eventually chosen.
+
+Full graph initialization remains about **14.7 seconds**, structural setup
+**6.6–7.3 seconds**, with artifact loading measured separately. The sequential
+batch peaked at **8.91 GB** in one 16 GB zero-swap scope, with no memory events,
+no neural service, no model calls, and no proof trials. Memory peaks are cumulative
+within that shared scope. Benchmark reports are
+`docs/cpu-selector-profile-graph-v5.json` and `...-v6.json`.
+
+The preview option exceeds the provisional 200 ms CPU p95 target. A small matched
+proof screen can test whether its extra evidence earns that cost; no superiority,
+coverage improvement, or promotion is established by these profiles. Retain the
+CPU control, original graph representation, preview representation, and both
+neural configurations under unchanged proof-search budgets. Re-admit the same
+34 development locations after pinning adapters, and freeze that protocol before
+new model calls. Reserved evaluation stays untouched.

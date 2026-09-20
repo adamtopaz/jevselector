@@ -79,6 +79,9 @@ appears in a prepared catalog.
 
 The graph is experimental. Synthetic tests check directions, bounds, visibility,
 environment changes, callback failures, state isolation, and explicitly unresolved
-proofs. Full-library costs and proof-quality improvements require separate
-measurement; graph traversal is not yet a recommended replacement for the
+proofs. The first Mathlib proof screen did not improve on the CPU base. Destination
+previews passed offline checks and native cost/output comparisons but have no
+proof-coverage result. See the [research results](../notes/research-results.md) and
+[preview measurements](../notes/graph-neighborhood-evidence.md) for the observed
+costs and limitations. Neither graph mode is a recommended replacement for the
 best measured CPU selector.

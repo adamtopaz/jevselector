@@ -547,3 +547,20 @@ no events under **16 GB and zero swap**. Services stopped after replay. The full
 report and per-trial evidence are in the benchmark repository's
 `docs/cpu-selector-graph-v1.json` and companion trial file. Frozen pins were
 benchmark `3bde24b`, selector `d6f4e25`, and JevHammer `2e3df66`.
+
+## Destination previews: validated and costed, proof coverage pending
+
+Selector `397bef6` adds opt-in destination-statement previews to graph choices.
+Compilation, focused graph tests, all 29 Python tests, native/artifact/profile
+checks, and benchmark integration passed under 16 GB. Native Mathlib profiles
+then preserved **384/384** ordered results for zero-preview compatibility and
+**384/384** fixed-direction results after adding three previews per direction.
+No query failed, and repeated rankings were stable.
+
+Preview CPU median/p95 is approximately **243–248 / 383–387 ms**, including the
+base selector and excluding actual Jev latency. Median payload size grew
+**5.96 → 16.86 KB**, excluding goal/context. The serial profile batch peaked at
+**8.91 GB**, with zero swap and no memory events. This exceeds the provisional
+200 ms p95 target, a tradeoff to report explicitly. It establishes no better
+proof coverage. The next small comparison is specified in
+`notes/graph-neighborhood-evidence.md`; all reserved proof trials remain zero.
