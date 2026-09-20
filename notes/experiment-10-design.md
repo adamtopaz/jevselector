@@ -58,3 +58,19 @@ and allow either explicit holdouts or none. The 122 reserved evaluation location
 remain untouched. Freeze a matched development comparison only after these checks;
 all arms retain Jev proof-state guidance, the same tactic/time/call budgets, and
 independent proof replay. A timing win alone does not establish better proof coverage.
+
+The Python fitting core is implemented as `fit_bayes`, separately from the old
+usage model. Ten focused tests cover an independent direct scoring formula,
+zero/fractional/default signature priors, held-out output labels, candidate-only
+definitions, input identity, admission-before-counting, pruning, determinism,
+empty libraries, and input immutability. These and the existing 19 Python tests
+pass. The fitter releases each label's raw counts as it emits its sparse record.
+No full-library preparation, Lean query integration, or proof trial has run for
+this candidate yet.
+
+For the native integration, use a versioned header followed by one label record
+per line. This will let Lean stream the file into an inverted index without
+retaining both a full per-label feature model and a second inverted copy, or one
+large JSON parse tree. Preserve checksum/provenance verification and exact input
+index identity. This is an implementation plan; its memory and timing benefits
+must be measured rather than inferred from the format.
