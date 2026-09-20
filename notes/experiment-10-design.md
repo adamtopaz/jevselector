@@ -65,12 +65,40 @@ zero/fractional/default signature priors, held-out output labels, candidate-only
 definitions, input identity, admission-before-counting, pruning, determinism,
 empty libraries, and input immutability. These and the existing 19 Python tests
 pass. The fitter releases each label's raw counts as it emits its sparse record.
-No full-library preparation, Lean query integration, or proof trial has run for
-this candidate yet.
+No full-library preparation or proof trial has run for this candidate yet.
 
-For the native integration, use a versioned header followed by one label record
-per line. This will let Lean stream the file into an inverted index without
+The native integration uses a versioned header followed by one label record
+per line. Lean streams the file into an inverted index without
 retaining both a full per-label feature model and a second inverted copy, or one
 large JSON parse tree. Preserve checksum/provenance verification and exact input
-index identity. This is an implementation plan; its memory and timing benefits
-must be measured rather than inferred from the format.
+index identity. Its full-library memory and timing costs still need measurement.
+
+The public `bayes`, `verify`, and three `profile` modes are implemented. Queries
+use distinct goal/context constants with unit weights, keep every label's prior,
+and default to at most 20,000 evenly sampled postings per symbol. A zero posting
+bound scores every stored edge; the default 64-feature artifact remains a
+separate approximation. Fusion with sparse and conclusion retrieval is flat RRF
+using the existing default parameters. These settings are fixed before any
+quality observations for this candidate.
+
+Native fixture checks compare all label scores against an independent direct
+formula, including unknown and duplicate query features. They also exercise
+training/evaluation overlap, malformed ownership/vocabulary/counts/type hashes,
+duplicate records, caller filtering before truncation, state restoration,
+unavailable/rolled-back/changed declarations, and a pending theorem whose body
+has not been committed. The latter runs under a 30-second process-group timeout.
+The full integration suite, all 29 Python checks, and 13 fixture profiling modes
+passed. Two initial native-test elaboration errors were corrected before the
+successful continuation; already passed preparation checks were retained. The
+continuation scope peaked at 252,866,560 bytes with no memory events, under
+16 GB and zero swap. These small-fixture timings are not full-library costs or
+proof-quality evidence.
+
+For the first full-library candidate, extract theorem-only dependency labels
+against the existing public-constant statement index. This keeps the same 254,885
+eligible theorem owners and all 188 evaluation-owner exclusions, and lets fusion
+share one statement index. The previously prepared public-label artifact took
+739 seconds to extract, so it is not silently reused as a free training input.
+Measure fresh dependency extraction and fitting, and add the recorded statement
+preparation cost when reporting the complete pipeline. Run CPU profiling before
+freezing a proof comparison; do not open reserved evaluation locations.

@@ -16,10 +16,19 @@ import time
 from .resources import DEFAULT_LIMIT, ensure_bounded, resource_snapshot
 from .dependencies import fit_dependencies
 from .usage import fit_usage
+from .bayes import fit_bayes
 
 
 def sha(data):
     return hashlib.sha256(data).hexdigest()
+
+
+def file_sha(path):
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for block in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(block)
+    return digest.hexdigest()
 
 
 def write_json(path, value):
@@ -228,12 +237,14 @@ def prepare(args):
 
 def verify(args):
     output = args.directory
-    names = [name for name in ["index", "dependencies", "usage"] if (output / f"{name}.json").exists()]
-    if not names:
+    artifacts = [(name, output / f"{name}.json") for name in ["index", "dependencies", "usage"]]
+    artifacts.append(("bayes", output / "bayes.jsonl"))
+    artifacts = [(name, path) for name, path in artifacts if path.exists()]
+    if not artifacts:
         raise ValueError("directory contains no recognized selector artifact")
-    for name in names:
+    for name, path in artifacts:
         expected = (output / f"{name}.sha256").read_text().split()[0]
-        if sha((output / f"{name}.json").read_bytes()) != expected:
+        if file_sha(path) != expected:
             raise ValueError(f"artifact checksum mismatch: {name}")
     print("Artifact SHA-256 verified")
 
@@ -353,6 +364,60 @@ def usage(args):
         write_json(output / "report.json", report)
 
 
+def bayes(args):
+    resources = ensure_bounded(args)
+    start = time.monotonic()
+    output = args.output.absolute()
+    output.mkdir(parents=True, exist_ok=False)
+    (output / ".jevselector-output").touch()
+    report = {"schema": 1, "status": "running", "resources": {"initial": resources}}
+    write_json(output / "report.json", report)
+    try:
+        inputs = {"statements": args.index, "dependencies": args.dependencies}
+        digests = {key: file_sha(path) for key, path in inputs.items()}
+        statements = json.loads(args.index.read_bytes())
+        dependency_model = json.loads(args.dependencies.read_bytes())
+        if dependency_model.get("provenance", {}).get("statementIndexSha256") != digests["statements"]:
+            raise ValueError("dependency artifact does not attest these exact statement-index bytes")
+        code = [Path(__file__), Path(__file__).with_name("bayes.py")]
+        code_hashes = {path.name: file_sha(path) for path in code}
+        header, premises = fit_bayes(statements, dependency_model,
+            signature_prior=args.signature_prior, observed_weight=args.observed_weight,
+            missing_weight=args.missing_weight, max_features=args.max_features)
+        if digests != {key: file_sha(path) for key, path in inputs.items()}:
+            raise RuntimeError("Bayes inputs changed during fitting")
+        if code_hashes != {path.name: file_sha(path) for path in code}:
+            raise RuntimeError("Bayes fitting code changed during preparation")
+        recipe = {"algorithm": header["kind"], "signaturePrior": args.signature_prior,
+                  "observedWeight": args.observed_weight, "missingWeight": args.missing_weight,
+                  "maxFeatures": args.max_features, "signaturePriorOwners": "eligible owners only",
+                  "featurePruning": "largest sparse deltas; complete label support retained",
+                  "format": "one header followed by one premise record per line"}
+        header["provenance"] = {"recipe": recipe, "inputSha256": digests,
+            "statementProvenance": statements["provenance"],
+            "dependencyProvenance": dependency_model["provenance"],
+            "preparationCodeSha256": code_hashes}
+        model_path = output / "bayes.jsonl"
+        with model_path.open("w", encoding="utf-8") as handle:
+            handle.write(json.dumps(header, ensure_ascii=False, separators=(",", ":")) + "\n")
+            for row in premises:
+                handle.write(json.dumps(row, ensure_ascii=False, separators=(",", ":")) + "\n")
+        checksum = file_sha(model_path)
+        (output / "bayes.sha256").write_text(checksum + "  bayes.jsonl\n")
+        report.update(status="complete", bayesSha256=checksum, recipe=recipe,
+            examples=len(header["exampleOwners"]), premises=header["premiseCount"],
+            symbols=len(header["symbols"]), signaturePriorOwners=len(header["signaturePriorOwners"]),
+            featureEdges=header["featureEdges"], artifactBytes=model_path.stat().st_size)
+        print(f"Prepared Bayes profiles for {report['premises']} premises")
+    except BaseException as error:
+        report.update(status="incomplete", error=str(error))
+        raise
+    finally:
+        report["totalSeconds"] = time.monotonic() - start
+        report["resources"]["final"] = resource_snapshot()
+        write_json(output / "report.json", report)
+
+
 def profile(args):
     resources = ensure_bounded(args)
     project, output = args.project.absolute(), args.output.absolute()
@@ -366,7 +431,8 @@ def profile(args):
     write_json(config, {"index": str(args.index.absolute()), "output": str(output / "queries.json"),
                         "samples": args.samples, "repeats": args.repeats, "method": args.method,
                         "dependencies": str(args.dependencies.absolute()) if args.dependencies else None,
-                        "usage": str(args.usage.absolute()) if args.usage else None})
+                        "usage": str(args.usage.absolute()) if args.usage else None,
+                        "bayes": str(args.bayes.absolute()) if args.bayes else None})
     env = dict(os.environ, JEVSELECTOR_PROFILE_CONFIG=str(config), JEVSELECTOR_TRACE_LOAD="1")
     lean_file(project, output / "Profile.lean", output / "profile.log", env, args.timeout,
               [f"-j{args.threads}", "-M0", "-DmaxHeartbeats=0"], "JevSelectorProfile")
@@ -402,9 +468,10 @@ def main():
     p.add_argument("--project", type=Path, default=Path.cwd())
     p.add_argument("--modules", nargs="+", required=True)
     p.add_argument("--index", type=Path, required=True)
-    p.add_argument("--method", choices=["sparse", "target", "closing-target", "structural", "structural-target", "rewrites", "rewrites-target", "structural-rewrites", "structural-rewrites-target", "ensemble", "neighbors", "proof-hybrid", "usage"], default="sparse")
+    p.add_argument("--method", choices=["sparse", "target", "closing-target", "structural", "structural-target", "rewrites", "rewrites-target", "structural-rewrites", "structural-rewrites-target", "ensemble", "neighbors", "proof-hybrid", "usage", "bayes", "bayes-target", "bayes-structural-target"], default="sparse")
     p.add_argument("--dependencies", type=Path, help="dependency companion for proof-neighbor methods")
     p.add_argument("--usage", type=Path, help="learned premise-usage companion")
+    p.add_argument("--bayes", type=Path, help="streamed sparse-Bayes companion")
     p.add_argument("--output", type=Path, required=True)
     p.add_argument("--samples", type=int, default=32)
     p.add_argument("--repeats", type=int, default=3)
@@ -431,6 +498,16 @@ def main():
     p.add_argument("--max-features", type=int, default=64, help="per-premise cap; zero keeps all")
     p.add_argument("--memory-limit", type=int, default=DEFAULT_LIMIT)
     p.add_argument("--external-memory-limit", action="store_true")
+    p = sub.add_parser("bayes")
+    p.add_argument("--index", type=Path, required=True)
+    p.add_argument("--dependencies", type=Path, required=True)
+    p.add_argument("--output", type=Path, required=True)
+    p.add_argument("--signature-prior", type=float, default=20.0)
+    p.add_argument("--observed-weight", type=float, default=10.0)
+    p.add_argument("--missing-weight", type=float, default=-15.0)
+    p.add_argument("--max-features", type=int, default=64, help="per-premise cap; zero keeps all")
+    p.add_argument("--memory-limit", type=int, default=DEFAULT_LIMIT)
+    p.add_argument("--external-memory-limit", action="store_true")
     args = parser.parse_args()
     try:
         if args.command == "prepare":
@@ -439,6 +516,8 @@ def main():
             dependencies(args)
         elif args.command == "usage":
             usage(args)
+        elif args.command == "bayes":
+            bayes(args)
         elif args.command == "profile":
             if args.samples <= 0 or args.repeats <= 0:
                 raise ValueError("samples and repeats must be positive")
@@ -446,6 +525,8 @@ def main():
                 raise ValueError("proof-neighbor profiling requires --dependencies")
             if args.method == "usage" and args.usage is None:
                 raise ValueError("usage profiling requires --usage")
+            if args.method.startswith("bayes") and args.bayes is None:
+                raise ValueError("Bayes profiling requires --bayes")
             profile(args)
         else:
             verify(args)

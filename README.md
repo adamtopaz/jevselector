@@ -121,6 +121,47 @@ than the premises' own statement overlap. See the
 limits. The implementation passes preparation and native integration tests;
 no coverage gain is claimed.
 
+## Experimental weighted sparse Bayes
+
+This CPU-only candidate learns premise profiles from eligible proof dependencies
+and a weighted example matching each eligible theorem to its own statement.
+The statement prior preserves a premise's own features even when few proofs use
+it. Held-out declarations and candidate-only definitions never supply training
+examples or statement priors, although dependencies can still name them as labels.
+There is no measured proof-coverage result for this candidate yet.
+
+```sh
+jevselector bayes --index artifacts/heldout/index.json \
+  --dependencies artifacts/proof-neighbors/dependencies.json \
+  --output artifacts/bayes --memory-limit 16000000000
+jevselector verify artifacts/bayes
+```
+
+Load with `JevSelector.loadBayes idx "artifacts/bayes/bayes.jsonl"`. The returned
+model supplies `model.selector {}`, `model.validateEnvironment`, and
+`model.validateHoldouts owners`. It uses the standard selector interface; no
+Python, proof-body access, or network service is needed at query time. Fuse it
+with `idx.targetSelector` or structural retrieval to cover edited and untrained
+premises. Available imported signatures must match the artifact; changed
+current-file labels are skipped. Filters run before truncation with Lean state
+restored between calls.
+
+The default recipe uses statement-prior weight 20, observed-feature factor 10,
+and missing-feature log weight −15. Each premise keeps its 64 largest feature
+contributions; `--max-features 0` keeps all. Query features are the distinct
+constants in the goal and visible context, with unit weights. A query considers
+all label priors, even without a feature match, and samples at most 20,000
+postings per feature by default. `maxPostingsPerSymbol := 0` scores the stored
+model exhaustively; the artifact's feature pruning is a separate approximation.
+Returned suggestion scores encode rank, not calibrated probability.
+
+The versioned JSONL artifact has one header and one record per premise. Loading
+streams records into an inverted index. The header records ownership, input
+identity, parameters, feature vocabulary, and provenance; checksum verification
+uses bounded reads. Profile with `--bayes artifacts/bayes/bayes.jsonl` and
+`--method bayes`, `bayes-target`, or `bayes-structural-target`. The last two use
+flat reciprocal-rank fusion. See the [fixed recipe](notes/experiment-10-design.md).
+
 ## Prepare any library
 
 Run from a Lake project importing the desired library:

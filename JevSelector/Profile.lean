@@ -1,6 +1,7 @@
 module
 public meta import JevSelector.ProofDependencies
 public meta import JevSelector.Usage
+public meta import JevSelector.Bayes
 public meta import JevSelector.Closing
 public meta import JevSelector.Structural
 public meta import Lean.Elab.Command
@@ -26,16 +27,21 @@ elab "#jevselector_profile" : command => do
   let usage ← match (cfg.getObjValAs? String "usage").toOption with
     | none => pure none
     | some path => some <$> loadUsage idx path
+  let bayes ← match (cfg.getObjValAs? String "bayes").toOption with
+    | none => pure none
+    | some path => some <$> loadBayes idx path
   let loadMs := (← IO.monoMsNow) - start
   IO.eprintln s!"JevSelector index loaded in {loadMs}ms"
   let (timings, structuralInitMs) ← liftTermElabM do
     idx.validateEnvironment
     if let some model := dependencies then model.validateEnvironment
     if let some model := usage then model.validateEnvironment
+    if let some model := bayes then model.validateEnvironment
     let combined := method == "structural-rewrites" || method == "structural-rewrites-target"
     let structuralStart ← IO.monoMsNow
     let structural ← if method == "structural" || method == "structural-target" ||
-        method == "rewrites" || method == "rewrites-target" || combined then do
+        method == "rewrites" || method == "rewrites-target" || combined ||
+        method == "bayes-structural-target" then do
       let mode := if method == "rewrites" || method == "rewrites-target" then
         StructuralMode.rewrites else StructuralMode.conclusion
       let model ← StructuralIndex.create mode
@@ -76,6 +82,15 @@ elab "#jevselector_profile" : command => do
       | "usage" => match usage with
         | some model => pure (model.selector {})
         | none => throwError "JevSelector: usage profiling requires a usage artifact"
+      | "bayes" | "bayes-target" | "bayes-structural-target" => match bayes with
+        | none => throwError "JevSelector: Bayes profiling requires a Bayes artifact"
+        | some model =>
+          if method == "bayes" then pure (model.selector {})
+          else if method == "bayes-target" then
+            pure (fuse #[idx.targetSelector, model.selector {}] {})
+          else match structural with
+            | some shape => pure (fuse #[idx.targetSelector, shape.selector {}, model.selector {}] {})
+            | none => throwError "JevSelector: Bayes structural index was not initialized"
       | _ => throwError "JevSelector: unknown profiling method {method}"
     let mut rows := #[]
     let count := min samples idx.artifact.declarations.size

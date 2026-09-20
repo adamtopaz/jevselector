@@ -42,6 +42,22 @@ python -m jevselector usage --index "$scratch/prepared/index.json" --dependencie
 python -m jevselector verify "$scratch/usage"
 lake build JevSelector.Usage
 JEVSELECTOR_TEST_INDEX="$scratch/prepared/index.json" JEVSELECTOR_TEST_USAGE="$scratch/usage/usage.json" lake env lean UsageTests.lean
+python -m jevselector bayes --index "$scratch/prepared/index.json" --dependencies "$scratch/dependencies/dependencies.json" --max-features 0 --output "$scratch/bayes" "$@"
+python -m jevselector verify "$scratch/bayes"
+python tests/bayes_reference.py "$scratch/prepared/index.json" "$scratch/dependencies/dependencies.json" "$scratch/bayes/bayes.jsonl" "$scratch/bayes-reference.json"
+lake build JevSelector.Bayes
+JEVSELECTOR_TEST_INDEX="$scratch/prepared/index.json" JEVSELECTOR_TEST_BAYES="$scratch/bayes/bayes.jsonl" JEVSELECTOR_TEST_BAYES_REFERENCE="$scratch/bayes-reference.json" python - <<'PY'
+import os, signal, subprocess
+job = subprocess.Popen(["lake", "env", "lean", "BayesTests.lean"], start_new_session=True)
+try:
+    status = job.wait(timeout=30)
+except subprocess.TimeoutExpired:
+    os.killpg(job.pid, signal.SIGKILL)
+    job.wait()
+    raise
+if status:
+    raise SystemExit(status)
+PY
 python -m jevselector prepare --modules ModernFixture --exclude tests/modern-holdout.json --output "$scratch/modern" "$@"
 python -m jevselector dependencies --modules ModernFixture --index "$scratch/modern/index.json" --output "$scratch/modern-dependencies" "$@"
 python - "$scratch/modern-dependencies/dependencies.json" <<'PY'
@@ -82,3 +98,6 @@ for method in neighbors proof-hybrid; do
   python -m jevselector profile --modules SelectorFixture --index "$scratch/prepared/index.json" --dependencies "$scratch/dependencies/dependencies.json" --method "$method" --samples 3 --repeats 2 --output "$scratch/profile-$method" "$@"
 done
 python -m jevselector profile --modules SelectorFixture --index "$scratch/prepared/index.json" --usage "$scratch/usage/usage.json" --method usage --samples 3 --repeats 2 --output "$scratch/profile-usage" "$@"
+for method in bayes bayes-target bayes-structural-target; do
+  python -m jevselector profile --modules SelectorFixture --index "$scratch/prepared/index.json" --bayes "$scratch/bayes/bayes.jsonl" --method "$method" --samples 3 --repeats 2 --output "$scratch/profile-$method" "$@"
+done
