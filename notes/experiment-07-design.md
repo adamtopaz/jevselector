@@ -32,5 +32,52 @@ screen. Compare the strongest neural reference with the same structural/closure
 wrapper as appropriate, so generic extra proof search is not mistaken for a
 retrieval-specific improvement.
 
-This is only a research plan. It is not implemented or benchmarked, and does not
-justify a claim of improvement over neural selection.
+The source audit confirmed that `findMatches` rebuilds a current-file tree per
+query, while its supplied `IO.Ref` caches imported signatures without a built-in
+environment identity check. Lean's higher-level `libSearchFindDecls` owns a global
+ref and also appends dropped current-file entries to a global fallback cache.
+For a public reusable selector, prefer an explicit `StructuralIndex` instance
+created for one imported environment, using the lower-level tree API without the
+dropped-entry fallback cache. Do not store mutable IO refs in an environment
+extension (Lean's incremental snapshots may map extension data read-only).
+
+Implementation drafted while the prior benchmark runs against pinned selector
+`f601085`; no changes are made to that deployed package or its benchmark sources.
+The new instance indexes only not-denied signatures, keeps name/type hashes, and
+rebuilds current-file signatures per query. Compare imported-module identities
+at query entry, then check candidate availability, type hashes, and caller filters
+before deduplication/truncation. Recreate an instance after reloading imports even
+if their module names stay the same. Match specificity is the count of non-star
+pattern keys; sort descending with deterministic name ties across imported/local
+candidates. Open goal binders only under restored Lean state. Do not cache query
+goals or current-file entries. Initialization errors must fail explicitly rather
+than returning an incomplete tree with discarded diagnostic messages.
+
+Further inspection found that `isDeniedPremise` itself calls `Environment.find?`,
+which waits for a complete asynchronous constant (including its proof body).
+The structural path therefore mirrors its public name/module/type-prefix deny
+extensions using the already supplied signature and `findConstVal?` at query
+time. This preserves the policy without forcing proof values just to index types.
+Native tests change all three deny extensions after index creation to check that
+cached entries cannot bypass updated policy. Other retrieval paths are unchanged.
+
+The initial query limit is 10,000 heartbeats. Initialization uses 6,500 constants
+per Lean import task and is measured separately; runtime thread counts and the
+aggregate cgroup remain the caller's resource controls. The synthetic warmup is
+`True`, so first-use expansion for actual benchmark shapes stays on the goal
+clock. No proof values, fitted statistics, or model calls participate.
+
+Native tests cover imported and current-file candidates, quantified goals,
+specificity order, both iff directions, deduplication, caller filters/state,
+unavailable future declarations, newly available declarations, rollback, changed
+imports, zero requests, and explicit resource bounds. These passed after the
+previous benchmark and its CPU neural services finished. All 19 Python tests and
+the existing native artifact, holdout, and selector integration checks passed.
+A profiling-command compile error was fixed; all six profiling paths (sparse,
+structural, structural fusion, neighbors, proof fusion, usage) then passed on the
+retained fixture artifacts. The profile-validation scope peaked at 208.88 MB with
+no memory events under the 16 GB zero-swap limit. Initial test-harness failures
+are retained in local logs; no proof benchmark used the unvalidated version.
+
+Full-library cost profiling is next. This validation establishes no proof-coverage
+gain. Do not promote the structural candidate until matched proof evidence exists.

@@ -41,6 +41,8 @@ PY
 lake env lean SineQuaNonTests.lean
 lake build JevSelector.Closing
 lake env lean ClosingTests.lean
+lake build JevSelector.Structural
+lake env lean StructuralTests.lean
 
 python -m jevselector prepare --modules CatalogFixture --exclude tests/catalog-holdout.json --catalog public-constants --output "$scratch/catalog" "$@"
 python -m jevselector dependencies --modules CatalogFixture --index "$scratch/catalog/index.json" --labels public-constants --output "$scratch/catalog-dependencies" "$@"
@@ -60,6 +62,9 @@ fi
 rg -q 'not an original theorem' "$scratch/rejected-definition-owner/extract.log"
 
 python -m jevselector profile --modules SelectorFixture --index "$scratch/prepared/index.json" --samples 3 --repeats 2 --output "$scratch/profile" "$@"
+for method in structural structural-target; do
+  python -m jevselector profile --modules SelectorFixture --index "$scratch/prepared/index.json" --method "$method" --samples 3 --repeats 2 --output "$scratch/profile-$method" "$@"
+done
 for method in neighbors proof-hybrid; do
   python -m jevselector profile --modules SelectorFixture --index "$scratch/prepared/index.json" --dependencies "$scratch/dependencies/dependencies.json" --method "$method" --samples 3 --repeats 2 --output "$scratch/profile-$method" "$@"
 done

@@ -209,6 +209,26 @@ not speculative proof terms. Other names retain their relative order. Configure
 these bounds with `ClosingConfig`. This is not a demonstrated coverage gain;
 use `profile --method closing-target` to measure its additional cost.
 
+`JevSelector.StructuralIndex.create` is a separate experimental candidate source
+using Lean's lazy discrimination tree over available declaration signatures. It
+needs no proof corpus or fitted artifact. Construct it in `MetaM` once per imported
+environment, then pass `model.selector {}` to the standard selector interface.
+Current-file signatures are rebuilt at query time; imported signatures are cached
+in the instance. Recreate the instance after changing or reloading imports.
+Candidate availability and statement hashes are checked before returning names.
+`model.warmup` uses the fixed query `True`; actual-goal lazy expansion remains part
+of query cost. Query work defaults to 10,000 heartbeats. Initialization is separate
+and its threads/memory are controlled by the surrounding Lean process/job.
+
+Combine it with sparse retrieval using
+`JevSelector.fuse #[idx.targetSelector, model.selector {}]`. Numeric scores encode
+rank rather than probabilities. CPU profiles accept `--method structural` and
+`--method structural-target`; `structuralInitMs` records creation plus fixed warmup
+separately from artifact loading and query time. The profile's statement index is
+used to choose repeatable query types; pure structural retrieval does not fit it.
+Native and fixture-profile validation passes on the research branch. Full-library
+costs and proof coverage remain unmeasured; there is no demonstrated coverage gain.
+
 `Index.validateHoldouts owners` rejects owners contributing to fitted statistics.
 Call it with **every evaluation owner** before benchmarking. Use
 `Index.validateEnvironment` during warmup to check available imported statements.

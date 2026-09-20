@@ -190,3 +190,30 @@ closure-ranked target, warmed neural, and identically closure-ranked neural. All
 use Jev proof-state guidance with unchanged tactic/search settings. It reuses
 the same 34 development sites and leaves reserved evaluation untouched. No
 coverage gain has yet been measured for these candidates.
+
+## Experiments 05/06: completed screen, one-goal public-catalog lead
+
+The public catalog solved **15/34**, versus **14/34** for original target retrieval,
+**12/34** for public-label neighbors, **13/34** for closure-ranked target, and
+**14/34** for both warmed neural and closure-ranked neural. All **204 trials**
+completed and **all 82 successful proofs independently replayed**; none were late.
+
+Public target gained one location and lost none against original target. Against
+either neural arm it gained two and lost one, with paired declaration-bootstrap
+95% interval **−5.9 to +11.8 percentage points**. This is an exploratory one-goal
+lead; significant superiority remains unproved. Retain the wider catalog as a
+promising cheap candidate, but do not promote either public-label voting or
+closure ranking as a stronger configuration on this evidence.
+
+Goal/retrieval totals in seconds were **118.923/5.629** for target,
+**113.456/5.399** for public target, **124.376/5.003** for public neighbors,
+**122.517/7.838** for closure target, **120.244/10.614** for neural, and
+**122.997/14.109** for closure neural. All **23 ranking/API errors** are retained
+(3, 5, 5, 4, 1, 5 by arm). The run made **326 requests**, with **1,836,304 reported
+input tokens**, **43,911 output tokens**, and unknown usage for **15** requests.
+Combined peak memory was **12.85 GB**, with no memory events under the **16 GB
+zero-swap cap**. Services stopped after replay. Reserved evaluation remains unused.
+
+Complete evidence is published as `cpu-selector-public-closure-v1.json` and its
+per-location trial file in the benchmark repository. The structural signature
+candidate is being validated next. The significant-improvement goal is still open.
