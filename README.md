@@ -256,8 +256,11 @@ suggestions. Full-Mathlib profiling of `fab11ad` measured rewrite lookup at
 16.0 ms median / 75.1 ms p95, with 28.3 s initialization. Conclusion/rewrite
 fusion measured 67.1 / 200.2 ms; adding sparse retrieval measured 209.7 / 361.5 ms.
 Both combined modes took about 56 s to initialize, with a shared serial-profile
-peak of 5.14 GB. These are 32 fixed statement types with three repeats, not proof
-coverage, which remains unmeasured. Its
+peak of 5.14 GB. These timings use 32 fixed statement types with three repeats.
+The independently replayed 34-location proof screen was negative: CPU fusion
+with rewrites solved 13 versus 16 for its control; neural fusion with rewrites
+solved 14 versus 16 for its control; signature-only solved 14. This is an
+experimental option, not the strongest measured configuration. Its
 [design note](notes/experiment-08-design.md) records the fixed recipe.
 
 `Index.validateHoldouts owners` rejects owners contributing to fitted statistics.

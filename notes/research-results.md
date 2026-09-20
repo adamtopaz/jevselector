@@ -350,3 +350,44 @@ setting. This is a development choice, not a claim that either flag is optimal
 on unseen goals. Full configurations, calls, costs, intervals, and all outcomes
 are published in the benchmark repository's `docs/cpu-selector-rerank-v1.json`
 and companion trial file. The research goal remains open.
+
+## Experiment 08: rewrite-source proof screen, no improvement
+
+All **170 trials** at the unchanged 34 development locations completed. Every
+one of the **74 successful proofs independently replayed**; one neural-control
+proof was late and is excluded. CPU control solved **16/34**, CPU plus rewrites
+**13/34**, signature-only conclusion/rewrite fusion **14/34**, neural control
+**16/34**, and neural plus rewrites **14/34** on time. The frozen benchmark was
+`90417b6`, with selector `fab11ad`. CPU arms used native premise order, neural
+arms used the previously selected Jev premise reranking, and all arms retained
+Jev proof-state guidance with identical six-second and three-call budgets.
+
+Adding rewrites to CPU fusion gained one location and lost four: **−8.8 points**,
+with paired declaration-bootstrap 95% interval **−20.59 to +2.94 points**. Adding
+them to neural fusion gained one and lost three: **−5.9 points**, interval
+**−17.65 to +5.88 points**. Signature-only gained two and lost four versus the
+CPU control. CPU and neural controls tied, gaining three and losing three against
+each other, with interval **−14.71 to +14.71 points**. None establish superiority;
+do not promote the rewrite fusion into a larger proof trial or reserved evaluation
+on this evidence. Keep the generic rewrite source available as an experimental
+option, with these negative results and its costs visible.
+
+Goal/retrieval totals in seconds were **116.880/6.732** (CPU control),
+**123.830/8.345** (CPU plus rewrites), **120.061/2.257** (signature-only),
+**131.358/11.594** (neural control), and **138.316/13.521** (neural plus rewrites).
+Signature-only lookup was cheap, but this is not a free-initialization result:
+standalone full-Mathlib initialization of both signature indexes takes about
+56 seconds. Shared preparation attribution in the proof run is order-dependent.
+
+All **16 ranking/API failures** remain included (3/8/4/0/1). There were **289
+requests**, **3,062,492 reported input tokens**, **194,939 output tokens**, and
+three requests with unknown usage. State-call counts were **42/50/55/22/22**;
+only the two neural arms made premise-ranking calls, **49 each**. No trials were
+budget-blocked. Peak was **11.92 GB**, with no memory events under **16 GB and
+zero swap**. Services stopped after replay; the 122 reserved evaluation locations
+remain untouched. The public report and all outcomes are in the benchmark repo's
+`docs/cpu-selector-rewrites-v1.json` and companion trial file.
+
+The next hypothesis is the eligible-signature prior in weighted sparse Bayes,
+documented in experiment 10. Its quality is not established. The strongest broad
+CPU result remains 63/134 versus 64/134 for neural/structural fusion.
