@@ -55,4 +55,21 @@ state but did not restore state after invoking the caller filter itself. That
 callback is now isolated, with a regression exercising a mutating filter. Pure
 benchmark filters have unchanged behavior. The larger experiment 07 comparison
 continues to pin the previously measured implementation; it does not silently
-incorporate this extension or fix. Full-Mathlib rewrite-mode profiling is pending.
+incorporate this extension or fix.
+
+Full-Mathlib profiling completed after the broader structural proof comparison
+and its services exited. With implementation `ae41248` (documentation revision
+`ed067b0`), 32 identical public statement types × 3 repeats measured rewrite-only
+retrieval at **16.20 ms median / 92.18 ms p95** and sparse/rewrite fusion at
+**179.97 / 299.02 ms**. The matched public sparse reference was **78.65 / 142.45
+ms**. Fixed-`True` initialization took **28.00–28.03 s**; artifact loads were
+**2.78–2.92 s** separately. Peak shared scope memory was **3.63 GB**, with no
+memory events under 16 GB and zero swap. All methods used fresh Lean processes.
+
+The profiler redirected only the explicit selector imports and plugin from an
+audited full-Mathlib setup to the separately validated selector checkout. Its
+report records every selector artifact checksum; the benchmark remained pinned
+to `b8b0a95`. The profile used no model calls or proof trials. Rewrite-only costs
+meet the provisional query target; fusion exceeds the 200 ms p95 target. Proof
+coverage remains unmeasured. Complete measurements are in the benchmark repo's
+`docs/cpu-selector-profile-rewrites-v1.json`.

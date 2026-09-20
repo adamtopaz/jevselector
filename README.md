@@ -246,8 +246,10 @@ only its strongest match. `StructuralConfig` bounds distinct visited expressions
 (8), in addition to the total heartbeat limit. Duplicate subexpressions are
 visited once. The same availability, state, and cache-isolation rules apply.
 Profile this mode with `--method rewrites` or sparse fusion with
-`--method rewrites-target`. Native boundary tests and fixture profiles pass;
-full-library costs and proof coverage remain unmeasured. Its
+`--method rewrites-target`. Native boundary tests and fixture profiles pass.
+Full-Mathlib profiling measured 16.2 ms median / 92.2 ms p95, with about 28 s
+initialization; sparse fusion measured 180.0 / 299.0 ms. Proof coverage remains
+unmeasured. Its
 [design note](notes/experiment-08-design.md) records the fixed recipe.
 
 `Index.validateHoldouts owners` rejects owners contributing to fitted statistics.
