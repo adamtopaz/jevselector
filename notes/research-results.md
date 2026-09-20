@@ -266,3 +266,48 @@ Complete reproducible evidence is in the benchmark repository's
 `docs/cpu-selector-structural-v1.json` and companion trial file. A complementary
 bounded rewrite-pattern source is drafted separately in experiment 08; it was
 not part of this measured improvement.
+
+## Experiment 07: full development, CPU gain over sparse but no neural advantage
+
+All **536 trials** at **134 development locations / 99 owners** completed, and
+all **247 successful proofs independently replayed**. Public sparse solved
+**57/134**, sparse + structural fusion **63/134**, plain warmed neural **63/134**,
+and neural + structural fusion **64/134**. None were late or budget-blocked.
+Selector `b8b0a95` and benchmark `405f7fe` retained the frozen six-second budgets,
+tactics, and Jev state guidance without premise reranking.
+
+CPU fusion gained seven and lost one against sparse, an observed **+4.5 points**
+with declaration-grouped paired 95% interval **+0.75 to +8.73 points**. Against
+plain neural it gained seven and lost seven (**−5.15 to +5.60 points**); against
+neural fusion it gained five and lost six (**−5.51 to +4.32 points**). This is a
+meaningful measured CPU improvement over sparse, but no advantage over the best
+neural approach. The significant-improvement research goal remains unfulfilled.
+
+On the original 34 pilot locations, counts again were sparse 15, CPU fusion 16,
+neural 14, neural fusion 13. On 19 other locations of pilot owners they were
+9/10/9/9. On **81 locations from 65 owners absent from the selector pilot**, they
+were **33/37/40/42**. These are exploratory development strata, with prior
+broad-baseline exposure, not independent test results. The apparent pilot lead
+did not generalize into a lead on the larger development cohort.
+
+Goal/retrieval times in seconds were **424.942/22.724** (sparse),
+**414.761/26.698** (CPU fusion), **403.897/54.893** (neural), and
+**417.450/62.836** (neural fusion). CPU retrieval remains cheaper, while the
+full-library fusion p95 cost caveat remains unchanged. There were **32 ranking
+failures** (9/13/5/5), **675 requests**, **3,611,284 reported input tokens**,
+**96,696 output tokens**, and **14** unknown-usage requests. Peak was **10.51 GB**,
+with no memory events under the **16 GB zero-swap cap**. No reserved evaluation
+location has been tried.
+
+A host environment change interrupted the launcher after 92 complete trial
+groups; only its original neural services survived. Recovery resumed the 42
+untouched goals in the same cgroup using those same live services and caches,
+preserving all 368 previous trials and 410 request records. Nothing was retried
+or reset. Full source-bound replay subsequently passed and services stopped.
+The benchmark report retains the interruption audit and all outcomes as
+`docs/cpu-selector-structural-broad-v1.json` and its companion trial file.
+
+The frozen rule selects CPU fusion and neural fusion for experiment 09's matched
+warmup reranking check. That test must precede any final superiority claim.
+Experiment 08's bounded rewrite mode remains separate; it has passed native
+tests and fixture profiles, but its full-library costs and proof value are pending.

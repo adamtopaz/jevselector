@@ -231,10 +231,11 @@ rank rather than probabilities. CPU profiles accept `--method structural` and
 separately from artifact loading and query time. The profile's statement index is
 used to choose repeatable query types; pure structural retrieval does not fit it.
 Native validation and full-Mathlib timing profiles pass on the research branch.
-The first replayed pilot measured 16/34 successes for sparse + structural fusion,
-15/34 for sparse, and 14/34 for neural retrieval, all with Jev proof-state guidance.
-This small development lead is not statistically established superiority; see
-[research results](notes/research-results.md) for paired uncertainty and costs.
+The replayed 134-location development comparison measured 63 successes for the
+sparse/structural fusion, 57 for sparse, 63 for neural, and 64 for neural/structural,
+all with Jev proof-state guidance. Fusion improves the CPU baseline but has not
+beaten the strongest neural reference; see [research results](notes/research-results.md)
+for paired uncertainty, exposure limitations, and costs.
 
 The experimental `StructuralIndex.create .rewrites` mode indexes both sides of
 equalities and iff statements, then matches bounded goal/context subexpressions.
