@@ -140,3 +140,23 @@ retrieval. Combined usage/index cold loading is **20.71 s**, versus **2.66 s** f
 the target index alone. The profile scope peaked at **5.01 GB** with no memory
 events. Warm queries meet the provisional cost target, but cold loading remains
 an obvious deployment cost. These measurements establish no proof-coverage gain.
+
+## Experiment 04: completed negative proof screen
+
+Under the corrected reader `63c3d60`, usage profiles solved **10/34**, versus
+**14/34** for both target-weighted and warmed neural retrieval. Usage gained no
+locations and lost four against each reference; its paired interval versus neural
+is −23.5 to −2.9 percentage points. All 102 trials were recorded, all 38 successes
+independently replayed, and no success was late. Do not promote this configuration.
+
+Retrieval totals were 2.431 s for usage, 5.104 s for target, and 10.807 s for neural;
+the faster lookup did not compensate for poorer premise order. All ranking/API
+errors remain in results (4, 5, and 2 respectively). Combined peak memory was
+11.42 GB under the 16 GB zero-swap cap, with no memory events. The reserved
+evaluation split remains untouched. Full evidence is in the benchmark report.
+
+An opt-in public-constant catalog and direct-label policy are now being validated.
+They admit definitions/constructors as candidates without expanding proof-training
+owners or opening definition bodies. This follows a source-level audit of the
+neural adapter's broader candidate universe, not inspection of failed goals.
+The significant-improvement objective remains open.
