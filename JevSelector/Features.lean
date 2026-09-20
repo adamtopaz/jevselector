@@ -14,7 +14,10 @@ def isDeniedSignature (env : Environment) (name : Name) (type : Expr) : Bool := 
   if (LibrarySuggestions.nameDenyListExt.getState env).any (fun p => name.anyS (· == p)) then
     return true
   if let some moduleIdx := env.getModuleIdxFor? name then
-    if LibrarySuggestions.isDeniedModule env (env.header.moduleNames[moduleIdx.toNat]!) then
+    -- moduleNames maps the entire import array. Read one entry directly in this
+    -- hot per-declaration path instead of allocating it for every signature.
+    let some mod := env.header.modules[moduleIdx.toNat]? | return true
+    if LibrarySuggestions.isDeniedModule env mod.module then
       return true
   if let .const head _ := type.getForallBody.getAppFn then
     if (LibrarySuggestions.typePrefixDenyListExt.getState env).any (·.isPrefixOf head) then
@@ -33,7 +36,7 @@ def symbols (type : Expr) : Array Name :=
 
 def moduleName (env : Environment) (name : Name) : Name :=
   match env.getModuleIdxFor? name with
-  | some idx => env.header.moduleNames[idx.toNat]!
+  | some idx => (env.header.modules[idx.toNat]?.map (·.module)).getD .anonymous
   | none => env.header.mainModule
 
 def matchesScope (moduleName scope : String) : Bool :=

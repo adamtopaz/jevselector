@@ -42,3 +42,12 @@ The evidence is in `docs/graph-initialization-validation.json`. To produce the
 same canonical snapshot in either revision, run `tests/tools/GraphSnapshot.lean`
 with `JEVSELECTOR_GRAPH_SNAPSHOT` set to an output path. The next Mathlib attempt
 will use an explicitly pinned optimized revision and separate phase progress.
+
+Later audit: the first two Mathlib diagnostic launchers omitted Lake's compiled
+plugin setup, so their costs are not comparable with production. V2 was stopped
+and both outputs retained. The canonical snapshots above were also obtained by
+direct interpreted launches; their exact equality remains valid, but do not
+present their timings as native performance. The corrected v3 native profile
+completed all 384 queries; its construction cost was 67.840 seconds. The next
+isolated change addresses repeated module-name array construction, documented
+in `notes/signature-module-lookup.md`.
