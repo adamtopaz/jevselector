@@ -1,0 +1,70 @@
+{
+  "schema": 1,
+  "status": "complete",
+  "resources": {
+    "initial": {
+      "memoryMax": 16000000000,
+      "swapMax": "0",
+      "memory.peak": "13123584",
+      "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0"
+    },
+    "final": {
+      "memoryMax": 16000000000,
+      "swapMax": "0",
+      "memory.peak": "511315968",
+      "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0"
+    }
+  },
+  "checks": [
+    {
+      "label": "old-build",
+      "status": "complete",
+      "seconds": 0.6148438749369234
+    },
+    {
+      "label": "old-snapshot",
+      "status": "complete",
+      "seconds": 9.530954780988395
+    },
+    {
+      "label": "new-build",
+      "status": "complete",
+      "seconds": 4.622100606095046
+    },
+    {
+      "label": "new-snapshot",
+      "status": "complete",
+      "seconds": 5.272750996053219
+    },
+    {
+      "label": "graph-regression",
+      "status": "complete",
+      "seconds": 4.721722340909764
+    },
+    {
+      "label": "async-regression",
+      "status": "complete",
+      "seconds": 8.12661329493858
+    }
+  ],
+  "oldSelectorCommit": "66197c1f0ea608de7bdcc398f4347961574e5ca5",
+  "newSourceSha256": "1575837651d72a77c2e1171ca714d7a631ba0e64416d28f5e8dbec343ec5f881",
+  "snapshot": {
+    "sha256": "487a7caa8fddce076299ec69e9a18395ce35fad0dee9bf5b129515d5b96c4eed",
+    "entries": 54484,
+    "forwardKeys": 10521,
+    "bytes": 28767249,
+    "byteIdentical": true
+  },
+  "liveModelCalls": 0,
+  "proofTrials": 0,
+  "initializationMs": {
+    "before": 7410,
+    "after": 3778
+  },
+  "limitations": [
+    "Single fresh-process timing per version on the Lean import environment, not Mathlib.",
+    "Snapshot equality covers all indexed signatures and ordered reverse edges in that environment.",
+    "Full-Mathlib cost attribution and proof-quality gains remain unmeasured."
+  ]
+}

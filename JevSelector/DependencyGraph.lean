@@ -26,7 +26,9 @@ private def dependencyEntry (type : Expr) : TypeDependencyEntry :=
 private def addForwardEdges (forward : Std.HashMap Name (Array Name))
     (name : Name) (entry : TypeDependencyEntry) : Std.HashMap Name (Array Name) :=
   entry.dependencies.foldl (fun edges dependency =>
-    edges.insert dependency ((edges.getD dependency #[]).push name)) forward
+    -- Alter consumes the old value before appending. Looking it up while
+    -- retaining the original map can copy a large array for every new edge.
+    edges.alter dependency (some <| ·.getD #[] |>.push name)) forward
 
 /-- Index only signatures available from the current imports. This is not fitted
 proof information and requires neither training examples nor proof holdouts. -/
