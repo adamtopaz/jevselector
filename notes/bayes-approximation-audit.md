@@ -62,3 +62,40 @@ same 32 public statement types and three repeats as the previous profile. Keep
 the original top-64-feature artifact unchanged. Record load and initialization
 costs separately, ranking-overlap aggregates, retrieval failures, and resource
 events. No Jev calls or proof trials occur in this cost screen.
+
+## Full-Mathlib cost and ranking result
+
+All six fresh-process profiles completed on selector `e793bad`, benchmark
+`b40fd98`: 32 fixed public statement types × three repeats each, 100 returned
+premises every time, zero Jev calls, and zero proof trials. The stored top-64
+feature model and statement catalog were byte-identical to the first screen.
+
+| Source | Sampled median / p95 ms | Exhaustive median / p95 ms | Mean top-8 overlap | Mean top-100 overlap |
+|---|---:|---:|---:|---:|
+| Bayes | 119.24 / 131.98 | 114.97 / 131.80 | 62.50% | 62.25% |
+| Sparse + Bayes | 278.14 / 357.09 | 274.83 / 353.41 | 78.91% | 80.50% |
+| Sparse + conclusion + Bayes | 318.98 / 465.98 | 317.84 / 460.66 | 80.86% | 84.41% |
+
+The first premise agreed on 45/96, 81/96, and 84/96 queries respectively;
+complete order agreed on only 9/96 for each source. These counts include three
+repeats of each public statement; they are not 96 independent mathematical
+problems. Latency differences are small and do not establish a speedup, but the
+cap demonstrably changes rankings without providing a measured cost advantage
+on this workload. Ranking changes alone do not establish better proofs.
+
+Loading took 18.62–19.13 seconds. Conclusion initialization took 28.13–28.30
+seconds where used. Shared serial peak was **6,997,962,752 bytes**, with no
+memory events under 16 GB and zero swap. Standalone exhaustive retrieval meets
+the provisional 200 ms p95 target; fusion remains above it. Full preparation
+cost is unchanged. The benchmark repo publishes raw summary metrics, ranking
+aggregates, hashes and limitations in
+`docs/cpu-selector-profile-bayes-postings-v1.json`.
+
+Next, compare sampled/exhaustive Bayes and sampled/exhaustive sparse/Bayes,
+with the fixed CPU/neural controls on the unchanged 34-location pilot. This
+selects the prior best learned fusion (15/34) and the standalone source that
+meets query cost targets; the prior triple fusion was weaker and more expensive.
+Freeze all six methods, the protocol, and re-admitted exact site/goal identities
+before calls. Keep the same proof budgets and shared Jev state guidance, retain
+all 204 trials, and independently replay successful proofs. A candidate must
+beat the CPU control to earn promotion; all reserved evaluation stays unopened.
