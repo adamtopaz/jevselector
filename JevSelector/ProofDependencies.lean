@@ -124,6 +124,17 @@ structure DependencyExportConfig where
   publicLabels : Bool := false
   deriving FromJson
 
+/-- The export environment and label policy are fixed for the whole extraction.
+Only cache metadata decisions; referenced proof/definition bodies are never
+traversed. Rejected names are cached too, as common infrastructure constants
+occur in many eligible proofs. -/
+private def dependencyLabel (env : Environment) (publicLabels : Bool) (name : Name) : Option Json :=
+  if isDeniedPremise env name || (!publicLabels && !wasOriginallyTheorem env name) then none
+  else do
+    let premise ← env.find? name
+    return Json.mkObj [("name", toJson name.toString),
+      ("typeHash", toJson (hash premise.type).toNat)]
+
 /-- Reads only eligible theorem owners' proof VALUES. It never opens referenced
 definition/helper bodies. Labels are direct public theorems by default, or
 direct public constants when the explicit policy permits them. -/
@@ -142,6 +153,7 @@ elab "#jevselector_dependencies" : command => do
     ("publicLabels", toJson cfg.publicLabels),
     ("statementArtifactId", toJson identity)]).compress
   let env ← getEnv
+  let mut labels : Std.HashMap Name (Option Json) := {}
   for (owner, i) in idx.artifact.eligible.zipIdx do
     unless wasOriginallyTheorem env owner.toName do
       throwError "JevSelector: eligible proof example {owner} is not an original theorem"
@@ -154,12 +166,12 @@ elab "#jevselector_dependencies" : command => do
       throwError "JevSelector: incomplete eligible proof {owner}; exclude it before preparation"
     let mut dependencies := #[]
     for name in symbols proof do
-      if name == owner.toName || isDeniedPremise env name ||
-          (!cfg.publicLabels && !wasOriginallyTheorem env name) then
-        continue
-      let some premise := env.find? name | continue
-      dependencies := dependencies.push <| Json.mkObj [("name", toJson name.toString),
-        ("typeHash", toJson (hash premise.type).toNat)]
+      if name == owner.toName then continue
+      let label ← if let some cached := labels[name]? then pure cached else do
+        let label := dependencyLabel env cfg.publicLabels name
+        labels := labels.insert name label
+        pure label
+      if let some label := label then dependencies := dependencies.push label
     output.putStrLn <| (Json.mkObj [("kind", toJson "proof"), ("owner", toJson owner),
       ("dependencies", .arr dependencies)]).compress
     if i % 10000 == 0 then IO.eprintln s!"JevSelector dependencies: {i}/{idx.artifact.eligible.size}"
