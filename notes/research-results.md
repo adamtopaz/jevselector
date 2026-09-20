@@ -160,3 +160,33 @@ They admit definitions/constructors as candidates without expanding proof-traini
 owners or opening definition bodies. This follows a source-level audit of the
 neural adapter's broader candidate universe, not inspection of failed goals.
 The significant-improvement objective remains open.
+
+## Experiments 05/06: preparation and CPU cost, proof screen pending
+
+Public-catalog preparation adds **63,162 candidate-only constants** to the same
+**254,885 eligible theorem owners**, taking **232.66 s** for a **183.78 MB**
+statement artifact. Its direct public-label companion has **187,655 labels** and
+**5,249,157 edges**, taking **739.28 s** and **129.56 MB**. Audits confirm identical
+original theorem rows, fitted symbol weights, owners/exclusions, original theorem
+edges, and original label hashes/weights. Definition bodies remain unopened.
+
+Bounded closure ranking is implemented in `f601085`, with native integration and
+19 Python tests passing. It is a generic CPU wrapper for any standard selector,
+including neural selection; it returns names after restoring all speculative
+Lean state. Parameters are fixed before the first proof screen.
+
+On the matched 32 theorem-type queries × 3 repetitions, target retrieval takes
+**65.62 ms median / 128.19 ms p95**, while adding closure ranking takes
+**105.90 / 216.91 ms**. The slightly higher-than-target p95 is an explicit cost,
+not a reason to silently reduce work before the first screen. Public-target and
+public-neighbor methods take **83.40 / 152.40 ms** and **52.73 / 86.35 ms** on 32
+types sampled from their expanded catalog; these are different query types from
+the original-catalog profile and must not be called a matched latency comparison.
+Their cold loads are **2.84 s** and **7.39 s**. The serial profile scope peaked at
+**3.85 GB**, with no memory events under the 16 GB zero-swap cap.
+
+The next pilot has six arms: unchanged target, public target, public neighbors,
+closure-ranked target, warmed neural, and identically closure-ranked neural. All
+use Jev proof-state guidance with unchanged tactic/search settings. It reuses
+the same 34 development sites and leaves reserved evaluation untouched. No
+coverage gain has yet been measured for these candidates.

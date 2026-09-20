@@ -40,4 +40,12 @@ The native library build, closure-ranking integration tests, and all 19 Python
 tests passed on 2026-09-19 under a 16 GB zero-swap scope. Integration checks also
 cover a mutating caller filter, the pool cap, and reflexivity discharge. No
 quality claim follows from these synthetic checks. Full-library query profiling
-and the fixed development screen remain pending.
+and the fixed development screen were the next steps.
+
+The fixed 32-theorem-type × 3-repeat CPU profile measured **105.90 ms median /
+216.91 ms p95** for closure-ranked target retrieval, versus **65.62 / 128.19 ms**
+for unchanged target retrieval on the same queries. Cold load was 2.48 s versus
+2.39 s. The p95 slightly exceeds the provisional 200 ms cost target; proceed to
+one proof screen because the added cost remains modest relative to the existing
+per-goal budget, but retain it as a cost rather than claiming free reranking.
+No parameters were adjusted using these timings.
