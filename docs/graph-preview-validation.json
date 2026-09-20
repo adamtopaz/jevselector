@@ -1,0 +1,42 @@
+{
+  "schema": 1,
+  "status": "complete",
+  "resources": {
+    "initial": {
+      "memoryMax": 16000000000,
+      "swapMax": "0",
+      "memory.peak": "13357056",
+      "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0"
+    },
+    "final": {
+      "memoryMax": 16000000000,
+      "swapMax": "0",
+      "memory.peak": "890617856",
+      "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0"
+    }
+  },
+  "checks": [
+    {
+      "label": "build",
+      "status": "complete",
+      "seconds": 5.171981206163764
+    },
+    {
+      "label": "graph",
+      "status": "complete",
+      "seconds": 5.823921035975218
+    },
+    {
+      "label": "offline",
+      "status": "complete",
+      "seconds": 40.639669626019895
+    }
+  ],
+  "modelCalls": 0,
+  "sourceSha256": {
+    "JevSelector/DependencyGraph.lean": "45d311ff9da0005d343b39f99a6d5656f547667a2f66b1ce4d8086f6927d34e9",
+    "GraphTests.lean": "bac5e857ec30c13b3b61c42ea099fee1b335eb432872800dd33e02880636fb25"
+  },
+  "proofTrials": 0,
+  "coverageClaim": "none; full-library cost and proof-quality experiments pending"
+}

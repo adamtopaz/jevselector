@@ -38,6 +38,25 @@ filtered before consuming the forward candidate cap. Public `forward` and
 `backward` queries return the full available neighborhood; the guided traversal
 has the extra bounds. Base retrieval retains its own work budget.
 
+An opt-in destination preview supplies more evidence to the ranker:
+
+```lean
+let options : JevSelector.GraphConfig := {
+  maxPreviewCandidates := 3
+  maxPreviewTypeChars := 480 }
+let selector := graph.guided options rank base
+```
+
+Preview candidates follow the same neighbor ordering and edge bound as expansion.
+Only available, admissible destinations passing the caller's filter are shown;
+filtering precedes the display limit. Each entry includes its name, printed type,
+and truncation flag. `preview_omitted` reports further display-eligible entries
+among the considered edges, while `preview_considered_edges` counts those edges
+before final-premise filtering. The full neighborhood counts can include
+intermediate constants that are not admissible final premises. Preview printing
+uses the same query budget and introduces no extra ranking call. The default
+`maxPreviewCandidates := 0` retains the original request format.
+
 The injected `GraphRanker` type is:
 
 ```lean

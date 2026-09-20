@@ -89,6 +89,59 @@ run_cmd liftTermElabM do
     maxSuggestions := 8, filter := fun name => pure (name == ``GraphFixture.forwardEdge) }
   unless result.map (·.name) == #[``GraphFixture.forwardEdge] do
     throwError "guided forward traversal did not return the permitted premise"
+  let originalChoices ← IO.mkRef (#[] : Array Json)
+  let capture : GraphRanker := fun q g choices => do
+    originalChoices.set choices
+    chooseDirection ``GraphFixture.marker "forward" q g choices
+  discard <| graph.guided {} capture LibrarySuggestions.empty goal {
+    maxSuggestions := 8, filter := fun name => pure (name == ``GraphFixture.forwardEdge) }
+  if (← originalChoices.get).any (fun c => (c.getObjVal? "preview").isOk) then
+    throwError "zero-preview mode changed the original request schema"
+  let previewChecked ← IO.mkRef false
+  let previewRank : GraphRanker := fun q g choices => do
+    unless q.contains "preview" do throwError "preview question lacks its interpretation"
+    for choice in choices do
+      let preview ← ofExcept <| choice.getObjValAs? (Array Json) "preview"
+      unless preview.size <= 1 do throwError "preview bound exceeded"
+      for entry in preview do
+        unless entry.getObjValD "constant" == toJson (``GraphFixture.forwardEdge).toString &&
+            ((entry.getObjValAs? String "type").toOption.getD "").length == 1 &&
+            entry.getObjValD "type_truncated" == .bool true do
+          throwError "preview filtering or type truncation failed"
+      if choice.getObjValD "constant" == toJson (``GraphFixture.marker).toString &&
+          choice.getObjValD "direction" == .str "forward" then
+        unless preview.size == 1 && choice.getObjValD "preview_omitted" == .bool false do
+          throwError "preview truncated before caller filtering"
+        previewChecked.set true
+    chooseDirection ``GraphFixture.marker "forward" q g choices
+  let previewResult ← graph.guided { maxPreviewCandidates := 1, maxPreviewTypeChars := 1 }
+    previewRank LibrarySuggestions.empty goal {
+      maxSuggestions := 8, filter := fun name => do
+        -- Even previews must treat caller filters as speculative queries.
+        if ← goal.isAssigned then throwError "preview filter leaked a previous assignment"
+        goal.assign (← mkEqRefl (mkNatLit 0))
+        pure (name == ``GraphFixture.forwardEdge) }
+  unless (← previewChecked.get) && previewResult.map (·.name) == result.map (·.name) do
+    throwError "preview evidence changed the fixed-direction traversal"
+  if ← goal.isAssigned then throwError "preview query leaked a filter assignment"
+  let omissionsChecked ← IO.mkRef false
+  let omissions : GraphRanker := fun q g choices => do
+    for choice in choices do
+      if choice.getObjValD "constant" == toJson (``GraphFixture.marker).toString &&
+          choice.getObjValD "direction" == .str "forward" then
+        let preview ← ofExcept <| choice.getObjValAs? (Array Json) "preview"
+        unless preview.size == 1 && choice.getObjValD "preview_omitted" == .bool true do
+          throwError "preview did not disclose omitted destination statements"
+        omissionsChecked.set true
+    chooseDirection ``GraphFixture.marker "forward" q g choices
+  discard <| graph.guided { maxPreviewCandidates := 1 } omissions LibrarySuggestions.empty goal {}
+  unless ← omissionsChecked.get do throwError "omission fixture was not exercised"
+  let zeroPreviewTypeRejected ← try
+    discard <| graph.guided { maxPreviewCandidates := 1, maxPreviewTypeChars := 0 }
+      capture LibrarySuggestions.empty goal {}
+    pure false
+  catch _ => pure true
+  unless zeroPreviewTypeRejected do throwError "zero preview type bound was accepted"
   let limited ← graph.guided { maxVisited := 1, maxEdgesPerNode := 1, maxRounds := 3 }
     rank LibrarySuggestions.empty goal { maxSuggestions := 100 }
   unless limited.size <= 1 do throwError "graph exceeded its visited/edge bound"

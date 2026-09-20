@@ -512,3 +512,38 @@ comparisons. The successful v3/v4 comparisons use the same native launch helper
 as the proof harness. The strongest completed broad proof result remains CPU
 63/134 versus neural 63/134 and neural/conclusion fusion 64/134. The significant
 coverage-improvement goal remains open.
+
+
+## Jev signature-graph proof screen: no promotion
+
+The first live graph comparison completed all **136 trials** on 34 development
+locations. All **58 successful proofs independently replayed**, with none late.
+CPU control solved **16/34**, graph **14/34**, neural native **13/34**, and neural
+reranked **15/34**. Graph gained none and lost two versus CPU, and gained one/lost
+two versus neural reranked. Its paired 95% interval against that stronger neural
+arm is **−11.76 to +5.88 percentage points**. It fails the frozen promotion rule.
+CPU's 16–15 comparison has interval **−5.88 to +11.76 points**; it establishes no
+superiority. The broader 63/134 versus 63/134 (64/134 for neural fusion) result
+still stands. All 122 reserved evaluation locations remain unused for proof trials.
+
+Goal/retrieval seconds were **119.344/6.381**, **118.941/28.954**,
+**125.328/12.214**, and **139.740/11.529** in that order. Graph used **50 selector
+calls and 24 state calls**, versus **41 state calls** for CPU control. Graph calls
+alone consumed **20.900 seconds**, included in its retrieval time. Neural native
+used 44 state calls; neural reranked used 50 ordinary premise calls and 23 state
+calls. All arms shared three calls and six seconds; the tactic set was unchanged.
+
+Across 384 graph-node decisions, Jev chose **326 backward, 50 no expansion, and
+eight forward**. Forty-seven selected expansions had empty neighborhoods. All
+50 selector responses were parseable; only 48 selected any nonempty expansion.
+These are aggregate observations, not proof of why the variant lost coverage.
+The bounded-preview hypothesis in `notes/graph-neighborhood-evidence.md` supplies
+reachable statement examples without changing fixed-direction traversal.
+
+All five ranking/API failures remain included, along with **232 requests**,
+**1,972,448 reported input tokens**, **120,176 output tokens**, and one request
+of unknown usage. No trial was budget-blocked. Peak memory was **11.64 GB**, with
+no events under **16 GB and zero swap**. Services stopped after replay. The full
+report and per-trial evidence are in the benchmark repository's
+`docs/cpu-selector-graph-v1.json` and companion trial file. Frozen pins were
+benchmark `3bde24b`, selector `d6f4e25`, and JevHammer `2e3df66`.

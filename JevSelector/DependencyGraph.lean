@@ -127,6 +127,10 @@ structure GraphConfig where
   Filtering precedes this cap; the heartbeat budget also bounds rejected work. -/
   maxForwardCandidates : Nat := 256
   maxTypeChars : Nat := 1200
+  /-- Optional destination-statement examples for each direction. Zero preserves
+  the original seed-type-only request. This changes only the model's evidence. -/
+  maxPreviewCandidates : Nat := 0
+  maxPreviewTypeChars : Nat := 480
   heartbeats : Nat := 10000
   rankOffset : Nat := 16
 
@@ -150,6 +154,50 @@ private def graphQuestion : String :=
 private def graphPermutation (order : Array Nat) (size : Nat) : Bool :=
   order.size == size && (List.range size).all (order.contains ·)
 
+private def graphNeighbors (neighbors : Array Name) (seedSet : Std.HashSet Name)
+    (baseRanks : Std.HashMap Name Nat) (baselineSize : Nat) :
+    MetaM (Array (Name × Nat)) := do
+  let env ← getEnv
+  let mut scored : Array (Name × Nat) := #[]
+  for name in neighbors do
+    Core.checkMaxHeartbeats "dependency graph neighbor ranking"
+    let some info := env.findConstVal? name | continue
+    let overlap := (symbols info.type).foldl (fun n s =>
+      n + if seedSet.contains s then 1 else 0) 0
+    scored := scored.push (name, overlap)
+  return scored.qsort fun a b =>
+    let ra := baseRanks.getD a.1 baselineSize
+    let rb := baseRanks.getD b.1 baselineSize
+    if ra != rb then ra < rb else
+      if a.2 != b.2 then a.2 > b.2 else Name.quickLt a.1 b.1
+
+/-- Preview only admissible destinations among the edges this action would
+follow. Counts still describe the traversal neighborhood, which may include
+intermediate constants rejected as final premises by the caller. -/
+private def graphPreview (candidates : Array (Name × Nat)) (options : GraphConfig)
+    (cfg : LibrarySuggestions.Config) : MetaM Json := do
+  let env ← getEnv
+  let candidates := candidates.take options.maxEdgesPerNode
+  let mut preview : Array Json := #[]
+  let mut omitted := false
+  for (name, _) in candidates do
+    Core.checkMaxHeartbeats "dependency graph preview"
+    let some info := env.findConstVal? name | continue
+    if isDeniedSignature env name info.type then continue
+    let beforeFilter ← saveState
+    let allowed ← try cfg.filter name finally beforeFilter.restore
+    unless allowed do continue
+    if preview.size >= options.maxPreviewCandidates then
+      omitted := true
+      break
+    let chars := (← ppExpr info.type).pretty.toList
+    preview := preview.push <| Json.mkObj [("constant", toJson name.toString),
+      ("type", toJson (String.ofList (chars.take options.maxPreviewTypeChars))),
+      ("type_truncated", toJson (decide (chars.length > options.maxPreviewTypeChars)))]
+  return Json.mkObj [("preview", toJson preview),
+    ("preview_omitted", toJson omitted),
+    ("preview_considered_edges", toJson candidates.size)]
+
 /-- A guided traversal decorates a caller-supplied CPU selector. Bounded graph
 expansion contributes a second ranking, fused with the unchanged initial base
 ranking. With no expansions, return that base ranking directly. -/
@@ -158,7 +206,8 @@ def DependencyGraph.guided (graph : DependencyGraph) (options : GraphConfig := {
   if cfg.maxSuggestions == 0 then return #[]
   if options.heartbeats == 0 || options.maxFrontier == 0 || options.maxVisited == 0 ||
       options.maxEdgesPerNode == 0 || options.maxForwardCandidates == 0 ||
-      options.maxTypeChars == 0 then
+      options.maxTypeChars == 0 ||
+      (options.maxPreviewCandidates > 0 && options.maxPreviewTypeChars == 0) then
     throwError "JevSelector: graph work bounds must be positive"
   let saved ← saveState
   try
@@ -197,22 +246,39 @@ def DependencyGraph.guided (graph : DependencyGraph) (options : GraphConfig := {
           nodes := nodes.take (min options.maxFrontier (options.maxVisited - visited.size))
           if nodes.isEmpty then break
           let mut choices := #[]
+          let mut backwardRanks : Array (Array (Name × Nat)) := #[]
+          let mut forwardRanks : Array (Array (Name × Nat)) := #[]
           for node in nodes do
             let some info := env.findConstVal? node.name
               | throwError "JevSelector: dependency graph frontier became unavailable"
             let chars := (← ppExpr info.type).pretty.toList
             let type := String.ofList (chars.take options.maxTypeChars)
-            for direction in #["none", "backward", "forward"] do
-              choices := choices.push <| Json.mkObj [("constant", toJson node.name.toString),
+            let (backwards, forwards, previews) ← if options.maxPreviewCandidates == 0 then
+                pure (#[], #[], #[])
+              else do
+                let backwards ← graphNeighbors node.backward seedSet baseRanks baseline.size
+                let forwards ← graphNeighbors node.forward seedSet baseRanks baseline.size
+                let previews := #[← graphPreview #[] options cfg,
+                  ← graphPreview backwards options cfg, ← graphPreview forwards options cfg]
+                pure (backwards, forwards, previews)
+            if options.maxPreviewCandidates > 0 then
+              backwardRanks := backwardRanks.push backwards
+              forwardRanks := forwardRanks.push forwards
+            for (direction, i) in #["none", "backward", "forward"].zipIdx do
+              let choice := Json.mkObj [("constant", toJson node.name.toString),
                 ("type", toJson type), ("direction", toJson direction),
                 ("type_truncated", toJson (decide (chars.length > options.maxTypeChars))),
                 ("backward_count", toJson node.backward.size),
                 ("forward_count_capped", toJson (node.forward.size == options.maxForwardCandidates)),
                 ("forward_count", toJson node.forward.size)]
+              choices := choices.push <| if let some preview := previews[i]? then
+                choice.mergeObj preview else choice
           -- The caller may inject a simple mock instead of JevHammer's checked
           -- callback. Preserve read-only behavior and validate either path.
           let beforeRank ← saveState
-          let order ← try rank graphQuestion goal choices
+          let question := if options.maxPreviewCandidates == 0 then graphQuestion else
+            graphQuestion ++ " Each preview shows admissible destination statements among the first edges this action would follow. Judge whether these statements can help solve the goal; a constant's mathematical relevance alone is not sufficient. preview_omitted marks additional admissible examples within those edges. Empty previews do not advertise a useful final premise, although intermediate constants may support further traversal."
+          let order ← try rank question goal choices
             catch _ => pure (List.range choices.size).toArray
             finally beforeRank.restore
           let order := if graphPermutation order choices.size then order
@@ -227,18 +293,11 @@ def DependencyGraph.guided (graph : DependencyGraph) (options : GraphConfig := {
             let direction := decisions.getD i 0
             let neighbors := if direction == 1 then node.backward else
               if direction == 2 then node.forward else #[]
-            let mut scored : Array (Name × Nat) := #[]
-            for name in neighbors do
-              Core.checkMaxHeartbeats "dependency graph neighbor ranking"
-              let some info := env.findConstVal? name | continue
-              let overlap := (symbols info.type).foldl (fun n s =>
-                n + if seedSet.contains s then 1 else 0) 0
-              scored := scored.push (name, overlap)
-            scored := scored.qsort fun a b =>
-              let ra := baseRanks.getD a.1 baseline.size
-              let rb := baseRanks.getD b.1 baseline.size
-              if ra != rb then ra < rb else
-                if a.2 != b.2 then a.2 > b.2 else Name.quickLt a.1 b.1
+            let scored ← if options.maxPreviewCandidates == 0 then
+                graphNeighbors neighbors seedSet baseRanks baseline.size
+              else if direction == 1 then pure backwardRanks[i]!
+              else if direction == 2 then pure forwardRanks[i]!
+              else pure #[]
             for (name, overlap) in scored.take options.maxEdgesPerNode do
               if reached.size >= options.maxVisited then break
               reached := reached.insert name (reached.getD name 0 + 1 + overlap)
