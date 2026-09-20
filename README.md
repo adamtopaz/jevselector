@@ -161,6 +161,13 @@ identity, parameters, feature vocabulary, and provenance; checksum verification
 uses bounded reads. Profile with `--bayes artifacts/bayes/bayes.jsonl` and
 `--method bayes`, `bayes-target`, or `bayes-structural-target`. The last two use
 flat reciprocal-rank fusion. See the [fixed recipe](notes/experiment-10-design.md).
+Pass `--bayes-max-postings 0` to profile exhaustive traversal of the stored model;
+the default is 20,000 postings per feature. The applied cap is recorded as
+`bayesMaxPostingsPerSymbol` in both profiling reports. Artifact feature pruning
+is independent of this query option.
+Add `--include-suggestions` to include returned premise names in rank order in
+`queries.json`, for aggregate ranking comparisons. Names are recorded after the
+query timer stops; the default reports only counts and timings.
 Full-Mathlib profiling of `8b9ffbe` measured standalone Bayes at 116.4 ms median /
 127.3 ms p95, with 18.8 s cold loading. Adding sparse retrieval measured
 276.8 / 350.2 ms; adding conclusion retrieval as well measured 319.3 / 467.2 ms,

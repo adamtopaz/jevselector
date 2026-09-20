@@ -432,7 +432,9 @@ def profile(args):
                         "samples": args.samples, "repeats": args.repeats, "method": args.method,
                         "dependencies": str(args.dependencies.absolute()) if args.dependencies else None,
                         "usage": str(args.usage.absolute()) if args.usage else None,
-                        "bayes": str(args.bayes.absolute()) if args.bayes else None})
+                        "bayes": str(args.bayes.absolute()) if args.bayes else None,
+                        "bayesMaxPostingsPerSymbol": args.bayes_max_postings,
+                        "includeSuggestions": args.include_suggestions})
     env = dict(os.environ, JEVSELECTOR_PROFILE_CONFIG=str(config), JEVSELECTOR_TRACE_LOAD="1")
     lean_file(project, output / "Profile.lean", output / "profile.log", env, args.timeout,
               [f"-j{args.threads}", "-M0", "-DmaxHeartbeats=0"], "JevSelectorProfile")
@@ -445,6 +447,8 @@ def profile(args):
                "loadMs": report["loadMs"], "queries": len(timings),
                "structuralInitMs": report.get("structuralInitMs", 0),
                "maxSuggestions": report.get("maxSuggestions", 100),
+               "bayesMaxPostingsPerSymbol": report.get("bayesMaxPostingsPerSymbol"),
+               "includeSuggestions": report.get("includeSuggestions", False),
                "medianMs": timings[len(timings) // 2], "p95Ms": timings[min(len(timings)-1, int(len(timings)*.95))],
                "meanMs": sum(timings)/len(timings), "resources": {"initial": resources, "final": resource_snapshot()}})
     print((output / "summary.json").read_text())
@@ -472,6 +476,10 @@ def main():
     p.add_argument("--dependencies", type=Path, help="dependency companion for proof-neighbor methods")
     p.add_argument("--usage", type=Path, help="learned premise-usage companion")
     p.add_argument("--bayes", type=Path, help="streamed sparse-Bayes companion")
+    p.add_argument("--bayes-max-postings", type=int, default=20000,
+                   help="per-feature Bayes query posting cap; zero is exhaustive")
+    p.add_argument("--include-suggestions", action="store_true",
+                   help="record returned premise names in rank order, outside query timing")
     p.add_argument("--output", type=Path, required=True)
     p.add_argument("--samples", type=int, default=32)
     p.add_argument("--repeats", type=int, default=3)
@@ -521,6 +529,8 @@ def main():
         elif args.command == "profile":
             if args.samples <= 0 or args.repeats <= 0:
                 raise ValueError("samples and repeats must be positive")
+            if args.bayes_max_postings < 0:
+                raise ValueError("Bayes posting cap must be nonnegative")
             if args.method in {"neighbors", "proof-hybrid"} and args.dependencies is None:
                 raise ValueError("proof-neighbor profiling requires --dependencies")
             if args.method == "usage" and args.usage is None:

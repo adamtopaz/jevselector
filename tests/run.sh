@@ -100,4 +100,30 @@ done
 python -m jevselector profile --modules SelectorFixture --index "$scratch/prepared/index.json" --usage "$scratch/usage/usage.json" --method usage --samples 3 --repeats 2 --output "$scratch/profile-usage" "$@"
 for method in bayes bayes-target bayes-structural-target; do
   python -m jevselector profile --modules SelectorFixture --index "$scratch/prepared/index.json" --bayes "$scratch/bayes/bayes.jsonl" --method "$method" --samples 3 --repeats 2 --output "$scratch/profile-$method" "$@"
+  python -m jevselector profile --modules SelectorFixture --index "$scratch/prepared/index.json" --bayes "$scratch/bayes/bayes.jsonl" --method "$method" --bayes-max-postings 0 --include-suggestions --samples 3 --repeats 2 --output "$scratch/profile-$method-exact" "$@"
 done
+python - "$scratch" <<'PY'
+import json, sys
+from pathlib import Path
+root = Path(sys.argv[1])
+for method in ["bayes", "bayes-target", "bayes-structural-target"]:
+    for suffix, expected in [("", 20000), ("-exact", 0)]:
+        for file in ["queries.json", "summary.json"]:
+            value = json.loads((root / ("profile-" + method + suffix) / file).read_text())
+            assert value["bayesMaxPostingsPerSymbol"] == expected
+            assert value["includeSuggestions"] == (suffix == "-exact")
+            if file == "queries.json":
+                for row in value["queries"]:
+                    if suffix == "-exact":
+                        assert len(row["suggestions"]) == row["returned"]
+                        assert len(set(row["suggestions"])) == row["returned"]
+                        assert row["name"] not in row["suggestions"]
+                    else:
+                        assert "suggestions" not in row
+PY
+if python -m jevselector profile --modules SelectorFixture --index "$scratch/prepared/index.json" --bayes "$scratch/bayes/bayes.jsonl" --method bayes --bayes-max-postings -1 --output "$scratch/invalid-posting-profile" "$@" > "$scratch/invalid-posting.log" 2>&1; then
+  echo "Profiling accepted a negative posting limit" >&2
+  exit 1
+fi
+rg -q 'Bayes posting cap must be nonnegative' "$scratch/invalid-posting.log"
+test ! -e "$scratch/invalid-posting-profile"

@@ -19,6 +19,13 @@ elab "#jevselector_profile" : command => do
   let samples ← ofExcept (cfg.getObjValAs? Nat "samples")
   let repeats ← ofExcept (cfg.getObjValAs? Nat "repeats")
   let method := (cfg.getObjValAs? String "method").toOption.getD "sparse"
+  let includeSuggestions : Bool ← match cfg.getObjVal? "includeSuggestions" with
+    | .ok value => IO.ofExcept (fromJson? value)
+    | .error _ => pure false
+  let bayesMaxPostings : Nat ← match cfg.getObjVal? "bayesMaxPostingsPerSymbol" with
+    | .ok value => IO.ofExcept (fromJson? value)
+    | .error _ => pure 20000
+  let bayesOptions : BayesQueryConfig := { maxPostingsPerSymbol := bayesMaxPostings }
   let start ← IO.monoMsNow
   let idx ← load indexPath
   let dependencies ← match (cfg.getObjValAs? String "dependencies").toOption with
@@ -85,11 +92,11 @@ elab "#jevselector_profile" : command => do
       | "bayes" | "bayes-target" | "bayes-structural-target" => match bayes with
         | none => throwError "JevSelector: Bayes profiling requires a Bayes artifact"
         | some model =>
-          if method == "bayes" then pure (model.selector {})
+          if method == "bayes" then pure (model.selector bayesOptions)
           else if method == "bayes-target" then
-            pure (fuse #[idx.targetSelector, model.selector {}] {})
+            pure (fuse #[idx.targetSelector, model.selector bayesOptions] {})
           else match structural with
-            | some shape => pure (fuse #[idx.targetSelector, shape.selector {}, model.selector {}] {})
+            | some shape => pure (fuse #[idx.targetSelector, shape.selector {}, model.selector bayesOptions] {})
             | none => throwError "JevSelector: Bayes structural index was not initialized"
       | _ => throwError "JevSelector: unknown profiling method {method}"
     let mut rows := #[]
@@ -106,8 +113,11 @@ elab "#jevselector_profile" : command => do
           let result ← selector goal.mvarId! {
             maxSuggestions := 100, filter := fun n => pure (n != name) }
           let elapsed := (← IO.monoNanosNow) - start
-          rows := rows.push <| Json.mkObj [("name", toJson e.name),
+          let fields := [("name", toJson e.name),
             ("elapsedNanos", toJson elapsed), ("returned", toJson result.size)]
+          let fields := if includeSuggestions then fields ++
+            [("suggestions", toJson (result.map (·.name.toString)))] else fields
+          rows := rows.push <| Json.mkObj fields
           IO.eprintln s!"Profile {e.name}: {elapsed / 1000000}ms"
         finally saved.restore
     return (rows, structuralInitMs)
@@ -115,6 +125,8 @@ elab "#jevselector_profile" : command => do
     ("kind", toJson "query-latency-only"), ("loadMs", toJson loadMs),
     ("structuralInitMs", toJson structuralInitMs),
     ("maxSuggestions", toJson (100 : Nat)),
+    ("includeSuggestions", toJson includeSuggestions),
+    ("bayesMaxPostingsPerSymbol", if method.startsWith "bayes" then toJson bayesMaxPostings else Json.null),
     ("method", toJson method),
     ("queries", .arr timings), ("provenance", idx.artifact.provenance)]).compress
 end JevSelector
