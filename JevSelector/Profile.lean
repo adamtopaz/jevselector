@@ -33,8 +33,11 @@ elab "#jevselector_profile" : command => do
     if let some model := dependencies then model.validateEnvironment
     if let some model := usage then model.validateEnvironment
     let structuralStart ← IO.monoMsNow
-    let structural ← if method == "structural" || method == "structural-target" then do
-      let model ← StructuralIndex.create
+    let structural ← if method == "structural" || method == "structural-target" ||
+        method == "rewrites" || method == "rewrites-target" then do
+      let mode := if method == "rewrites" || method == "rewrites-target" then
+        StructuralMode.rewrites else StructuralMode.conclusion
+      let model ← StructuralIndex.create mode
       model.warmup
       pure (some model)
     else pure none
@@ -44,10 +47,10 @@ elab "#jevselector_profile" : command => do
       | "sparse" => pure (idx.selector {})
       | "target" => pure idx.targetSelector
       | "closing-target" => pure (closingFirst idx.targetSelector)
-      | "structural" => match structural with
+      | "structural" | "rewrites" => match structural with
         | some model => pure (model.selector {})
         | none => throwError "JevSelector: structural index was not initialized"
-      | "structural-target" => match structural with
+      | "structural-target" | "rewrites-target" => match structural with
         | some model => pure (fuse #[idx.targetSelector, model.selector {}] {})
         | none => throwError "JevSelector: structural index was not initialized"
       | "ensemble" => pure (idx.ensembleSelector {})

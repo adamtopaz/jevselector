@@ -230,9 +230,24 @@ rank rather than probabilities. CPU profiles accept `--method structural` and
 `--method structural-target`; `structuralInitMs` records creation plus fixed warmup
 separately from artifact loading and query time. The profile's statement index is
 used to choose repeatable query types; pure structural retrieval does not fit it.
-Native validation and full-Mathlib timing profiles pass on the research branch;
-see [research results](notes/research-results.md) for initialization and query
-costs. Proof coverage remains unmeasured; there is no demonstrated coverage gain.
+Native validation and full-Mathlib timing profiles pass on the research branch.
+The first replayed pilot measured 16/34 successes for sparse + structural fusion,
+15/34 for sparse, and 14/34 for neural retrieval, all with Jev proof-state guidance.
+This small development lead is not statistically established superiority; see
+[research results](notes/research-results.md) for paired uncertainty and costs.
+
+The experimental `StructuralIndex.create .rewrites` mode indexes both sides of
+equalities and iff statements, then matches bounded goal/context subexpressions.
+It returns standard premise suggestions for any downstream tactic set. Forward
+matches get twice the specificity weight of backward matches; each name receives
+only its strongest match. `StructuralConfig` bounds distinct visited expressions
+(256), pattern queries (64), traversal depth (8), and propositional hypotheses
+(8), in addition to the total heartbeat limit. Duplicate subexpressions are
+visited once. The same availability, state, and cache-isolation rules apply.
+Profile this mode with `--method rewrites` or sparse fusion with
+`--method rewrites-target`. Native boundary tests and fixture profiles pass;
+full-library costs and proof coverage remain unmeasured. Its
+[design note](notes/experiment-08-design.md) records the fixed recipe.
 
 `Index.validateHoldouts owners` rejects owners contributing to fitted statistics.
 Call it with **every evaluation owner** before benchmarking. Use
