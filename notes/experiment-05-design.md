@@ -55,4 +55,18 @@ native integration checks passed under the 16 GB zero-swap cap on 2026-09-19.
 The decoder supplies explicit defaults for missing optional JSON fields because
 Lean's derived decoder does not apply structure defaults; old index and dependency
 artifacts are tested explicitly. Full-library cost and proof coverage remain
-unmeasured; this is not a demonstrated improvement.
+unmeasured at implementation time; this is not a demonstrated improvement.
+
+Full-library preparation subsequently completed under the 16 GB zero-swap cap.
+The public statement catalog contains 318,231 declarations, including 63,162
+non-excluded candidate-only constants, and the same 254,885 eligible theorem
+owners. Preparation took 232.66 s and produced a 183.78 MB artifact. Public
+dependency labels took 739.28 s, with 187,655 premises and 5,249,157 edges in a
+129.56 MB companion. The scopes reported peaks of 7.42 GB and 3.67 GB respectively,
+without memory events; these are cgroup measurements, not sums of process RSS.
+
+An exhaustive artifact comparison verifies identical eligible and excluded names,
+identical fitted symbol weights, and byte-equivalent decoded original theorem
+rows. Every original theorem dependency edge remains, with identical original
+label statement hashes and IDF weights. Only the candidate/label universe has
+expanded. Query costs and paired proof coverage are the next checks.

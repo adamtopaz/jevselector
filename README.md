@@ -200,6 +200,15 @@ also accepts other selector arrays. Constituent numeric scores need not be
 comparable, and each constituent runs with isolated Lean state. External IO
 cannot be rolled back. Importing the module does not register a global selector.
 
+`JevSelector.closingFirst idx.targetSelector {}` is an experimental, CPU-only
+wrapper for any standard selector. It retrieves at most 100 names, probes the
+first 64 after filtering, and promotes those that close the goal by application
+followed by local assumptions or reflexivity (at most four subgoals). Each probe
+has a 1,000-heartbeat limit and restores Lean state; the wrapper returns names,
+not speculative proof terms. Other names retain their relative order. Configure
+these bounds with `ClosingConfig`. This is not a demonstrated coverage gain;
+use `profile --method closing-target` to measure its additional cost.
+
 `Index.validateHoldouts owners` rejects owners contributing to fitted statistics.
 Call it with **every evaluation owner** before benchmarking. Use
 `Index.validateEnvironment` during warmup to check available imported statements.

@@ -39,6 +39,8 @@ assert [row["owner"] for row in model["examples"]] == ["ModernFixture.keep"]
 assert [row["name"] for row in model["premises"]] == ["Nat.add_zero"]
 PY
 lake env lean SineQuaNonTests.lean
+lake build JevSelector.Closing
+lake env lean ClosingTests.lean
 
 python -m jevselector prepare --modules CatalogFixture --exclude tests/catalog-holdout.json --catalog public-constants --output "$scratch/catalog" "$@"
 python -m jevselector dependencies --modules CatalogFixture --index "$scratch/catalog/index.json" --labels public-constants --output "$scratch/catalog-dependencies" "$@"

@@ -400,7 +400,7 @@ def main():
     p.add_argument("--project", type=Path, default=Path.cwd())
     p.add_argument("--modules", nargs="+", required=True)
     p.add_argument("--index", type=Path, required=True)
-    p.add_argument("--method", choices=["sparse", "target", "ensemble", "neighbors", "proof-hybrid", "usage"], default="sparse")
+    p.add_argument("--method", choices=["sparse", "target", "closing-target", "ensemble", "neighbors", "proof-hybrid", "usage"], default="sparse")
     p.add_argument("--dependencies", type=Path, help="dependency companion for proof-neighbor methods")
     p.add_argument("--usage", type=Path, help="learned premise-usage companion")
     p.add_argument("--output", type=Path, required=True)

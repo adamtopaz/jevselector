@@ -1,6 +1,7 @@
 module
 public meta import JevSelector.ProofDependencies
 public meta import JevSelector.Usage
+public meta import JevSelector.Closing
 public meta import Lean.Elab.Command
 public meta section
 namespace JevSelector
@@ -33,6 +34,7 @@ elab "#jevselector_profile" : command => do
     let selector ← match method with
       | "sparse" => pure (idx.selector {})
       | "target" => pure idx.targetSelector
+      | "closing-target" => pure (closingFirst idx.targetSelector)
       | "ensemble" => pure (idx.ensembleSelector {})
       | "neighbors" => match dependencies with
         | some model => pure (model.selector {})
