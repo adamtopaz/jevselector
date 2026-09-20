@@ -391,3 +391,62 @@ remain untouched. The public report and all outcomes are in the benchmark repo's
 The next hypothesis is the eligible-signature prior in weighted sparse Bayes,
 documented in experiment 10. Its quality is not established. The strongest broad
 CPU result remains 63/134 versus 64/134 for neural/structural fusion.
+
+## Experiment 10: weighted sparse Bayes, no promotion
+
+The amended 34-location pilot completed **170 trials**. All **70 successful
+proofs independently replayed**, with one late neural-control proof excluded
+from coverage. On-time counts were **16/34 CPU control**, **12/34 Bayes alone**,
+**15/34 sparse + Bayes**, **13/34 sparse + conclusion + Bayes**, and **13/34 neural
+control**. All arms retained Jev proof-state guidance, the same six-second and
+three-call search budgets, the same Mathlib tactics, and selector `8b9ffbe`.
+CPU arms used native premise order; the neural control used the previously
+selected Jev premise reranking.
+
+None of the Bayes variants found an on-time success absent from the CPU control:
+Bayes lost four locations, sparse/Bayes lost one, and triple fusion lost three.
+The frozen promotion rule therefore rejects all three for a larger development
+trial. The strongest Bayes variant is sparse/Bayes, but it does not improve the
+existing CPU approach. Do not promote it merely because it beats this pilot's
+neural count. CPU control gained four and lost one versus neural control,
+**+8.8 percentage points**, with declaration-bootstrap 95% interval
+**−2.94 to +20.59 points**. Sparse/Bayes gained three and lost one versus neural,
+interval **−5.88 to +17.65 points**. This exposed pilot establishes no superiority;
+the larger 134-location CPU/neural result remains 63/63 (64 for neural fusion).
+
+Goal/retrieval totals in seconds, in the above method order, were
+**117.871/7.066**, **133.063/6.327**, **117.808/12.936**, **126.243/14.382**, and
+**140.094/12.456**. State-ranking calls were **42/53/47/48/23**; only neural made
+premise-ranking calls (**50**). All **11 ranking/API failures** remain included
+(4/2/2/2/1). Total usage was **263 requests**, **2,054,252 reported input tokens**,
+**111,585 output tokens**, and **five unknown-usage requests**. No trial was
+budget-blocked. Full preparation and query costs remain as previously reported:
+16.9 minutes preparation, with fused retrieval exceeding the provisional
+200 ms p95 target. These costs do not disappear when interpreting coverage.
+
+Collection initially stopped with 145 trials across 29 complete paired sites.
+The other five modules failed before any warmup record, proof trial, or Jev
+request because cold triple-source initialization exceeded an inherited MetaM
+heartbeat limit. All 60 initially successful proofs replayed without changing
+those records. A generic configurable warmup budget was then independently
+validated: cold full-Mathlib initialization failed at 200,000 and 1,000,000
+heartbeats, and passed at 5,000,000. The six-second/200,000-heartbeat proof-search
+budget was unchanged. Offline regression checks passed, and all 34 original
+locations and goal hashes were re-admitted with zero model calls.
+
+The fix and recovery protocol were published as benchmark `7579a46` before
+collecting only the 25 never-attempted trials. Original trials and cumulative
+usage were retained byte for byte. Recovery used fresh CPU neural services,
+with the same imported/current-file statement warmup policy but different
+cross-phase service cache history. This limitation, both code revisions, and
+before/after checksums are recorded. All collected successful proofs were then replayed together.
+Initial and recovery peaks were **10.61 GB** and **12.22 GB**, with no memory
+events under the **16 GB zero-swap cap**. Services stopped; all **122 reserved
+evaluation locations remain untouched**.
+
+Public evidence is in the benchmark repository's
+`docs/cpu-selector-bayes-v1.json` and companion trial file. The next isolated
+hypothesis is whether the posting cap distorts Bayes retrieval, as described in
+`notes/bayes-approximation-audit.md`. Full-Mathlib cost and aggregate ranking
+change measurements must precede another proof screen; exact ranking alone is
+not proof-quality evidence. The significant-improvement goal remains open.

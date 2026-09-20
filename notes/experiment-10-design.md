@@ -137,3 +137,14 @@ variants, the existing CPU control, and the strongest selected neural control.
 The extra fusion cost stays inside the shared proof-search clock. Report quality
 and cost together; do not infer a coverage gain from these profiles or redefine
 the speed targets. The 122 reserved evaluation locations remain untouched.
+
+## Completed proof screen
+
+All 170 trials and 70 successful-proof replays are complete. On-time coverage
+was CPU control 16/34, Bayes 12/34, sparse/Bayes 15/34, triple fusion 13/34,
+neural control 13/34 (plus one late proof). No Bayes variant beats the CPU
+control, so none earns promotion under the frozen rule. The collection required
+an initialization-only harness repair and recovery of 25 never-attempted trials;
+all earlier records and cumulative usage were preserved. See
+[research results](research-results.md#experiment-10-weighted-sparse-bayes-no-promotion)
+for costs, uncertainty, service-restart limitations, and public evidence.
