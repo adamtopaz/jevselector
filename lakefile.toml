@@ -17,3 +17,7 @@ srcDir = "tests/fixtures"
 [[lean_lib]]
 name = "ModernFixture"
 srcDir = "tests/fixtures"
+
+[[lean_lib]]
+name = "CatalogFixture"
+srcDir = "tests/fixtures"

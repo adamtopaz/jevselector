@@ -12,6 +12,9 @@ def fit_dependencies(records, statements):
             or header.get("leanVersion") != statements["leanVersion"]
             or header.get("statementArtifactId") != statements["provenance"]["artifactId"]):
         raise ValueError("dependency export does not match its statement index")
+    public_labels = header.get("publicLabels", False)
+    if not isinstance(public_labels, bool):
+        raise ValueError("invalid dependency label policy")
     eligible = set(statements["eligible"])
     seen, examples, premises = set(), [], {}
     for record in records:
@@ -37,6 +40,7 @@ def fit_dependencies(records, statements):
     return {
         "schema": 1, "leanVersion": statements["leanVersion"],
         "statementArtifactId": statements["provenance"]["artifactId"],
+        "publicLabels": public_labels,
         "examples": sorted(examples, key=lambda row: row["owner"]),
         "premises": [{"name": name, "typeHash": premises[name],
                       "weight": 1 + math.log((count + 1) / (frequencies[name] + 1))}

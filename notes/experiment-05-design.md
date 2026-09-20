@@ -35,3 +35,24 @@ proof coverage. Do not tune by inspecting which specific failed goals use missin
 definitions. Test this independently from structural features or altered Jev
 budgets. If it helps, consider generalizing the type-statistics eligibility policy
 separately, with a documented schema and explicit tests for every holdout mode.
+
+Initial implementation design: keep fitted statistics and proof-owner eligibility
+theorem-only. Add `publicConstants` and `candidateOnly` to the statement artifact;
+defaults preserve old theorem-only artifacts. A `--catalog public-constants`
+preparation can return additional public types without fitting their statistics.
+Independently, `dependencies --labels public-constants` permits definitions and
+constructors as direct labels from the same eligible theorem proofs. It must
+check original-theorem status before obtaining any owner's value, including for
+an artifact corrupted to mark a definition eligible. No definition/helper body
+may be traversed. Current-file supplementation follows the catalog policy.
+
+Regression fixtures include a proof-valued definition whose body uses a lemma,
+and a theorem that refers only to that definition. The wide model must recover
+the definition as a label without recovering the hidden lemma. They also cover
+constructors, caller filters, held-out owners, legacy artifacts, and rejection
+of candidate-only/fitted-owner overlap. The complete 19-test Python suite and
+native integration checks passed under the 16 GB zero-swap cap on 2026-09-19.
+The decoder supplies explicit defaults for missing optional JSON fields because
+Lean's derived decoder does not apply structure defaults; old index and dependency
+artifacts are tested explicitly. Full-library cost and proof coverage remain
+unmeasured; this is not a demonstrated improvement.

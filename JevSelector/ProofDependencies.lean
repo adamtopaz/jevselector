@@ -23,6 +23,7 @@ structure DependencyArtifact where
   examples : Array DependencyExample
   premises : Array DependencyPremise
   provenance : Json
+  publicLabels : Bool := false
   deriving FromJson, ToJson
 
 structure DependencyIndex where
@@ -34,8 +35,9 @@ structure DependencyIndex where
 /-- A dependency model is tied to the exact eligible example set of its
 statement index. Excluded owners can never reappear as training examples. -/
 def loadDependencies (idx : Index) (path : System.FilePath) : IO DependencyIndex := do
-  let artifact : DependencyArtifact ← IO.ofExcept
-    (Json.parse (← IO.FS.readFile path) >>= fromJson?)
+  let json ← IO.ofExcept (Json.parse (← IO.FS.readFile path))
+  let artifact : DependencyArtifact ← IO.ofExcept <| fromJson?
+    (jsonDefaults json [("publicLabels", .bool false)])
   let identity ← IO.ofExcept (idx.artifact.provenance.getObjValAs? String "artifactId")
   unless artifact.schema == 1 && artifact.leanVersion == Lean.versionString &&
       artifact.statementArtifactId == identity do
@@ -119,24 +121,30 @@ def DependencyIndex.hybridSelector (idx : DependencyIndex)
 structure DependencyExportConfig where
   index : String
   output : String
+  publicLabels : Bool := false
   deriving FromJson
 
-/-- Reads only eligible owners' proof VALUES. It never opens referenced helper
-bodies, and exports direct public-theorem references rather than transitive edges. -/
+/-- Reads only eligible theorem owners' proof VALUES. It never opens referenced
+definition/helper bodies. Labels are direct public theorems by default, or
+direct public constants when the explicit policy permits them. -/
 elab "#jevselector_dependencies" : command => do
   let some config ← IO.getEnv "JEVSELECTOR_DEPENDENCY_CONFIG"
     | throwError "set JEVSELECTOR_DEPENDENCY_CONFIG"
-  let cfg : DependencyExportConfig ← IO.ofExcept
-    (Json.parse (← IO.FS.readFile config) >>= fromJson?)
+  let json ← IO.ofExcept (Json.parse (← IO.FS.readFile config))
+  let cfg : DependencyExportConfig ← IO.ofExcept <| fromJson?
+    (jsonDefaults json [("publicLabels", .bool false)])
   let idx ← load cfg.index
   liftTermElabM do idx.validateEnvironment
   let identity ← ofExcept (idx.artifact.provenance.getObjValAs? String "artifactId")
   let output ← IO.FS.Handle.mk cfg.output .write
   output.putStrLn <| (Json.mkObj [("kind", toJson "dependency-header"),
     ("leanVersion", toJson Lean.versionString),
+    ("publicLabels", toJson cfg.publicLabels),
     ("statementArtifactId", toJson identity)]).compress
   let env ← getEnv
   for (owner, i) in idx.artifact.eligible.zipIdx do
+    unless wasOriginallyTheorem env owner.toName do
+      throwError "JevSelector: eligible proof example {owner} is not an original theorem"
     let some info := env.find? owner.toName
       | throwError "JevSelector: eligible example {owner} is not imported"
     -- Eligibility is established before obtaining or traversing a proof body.
@@ -146,7 +154,8 @@ elab "#jevselector_dependencies" : command => do
       throwError "JevSelector: incomplete eligible proof {owner}; exclude it before preparation"
     let mut dependencies := #[]
     for name in symbols proof do
-      if name == owner.toName || !wasOriginallyTheorem env name || isDeniedPremise env name then
+      if name == owner.toName || isDeniedPremise env name ||
+          (!cfg.publicLabels && !wasOriginallyTheorem env name) then
         continue
       let some premise := env.find? name | continue
       dependencies := dependencies.push <| Json.mkObj [("name", toJson name.toString),

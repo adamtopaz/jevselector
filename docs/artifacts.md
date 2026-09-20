@@ -9,6 +9,14 @@ covers the complete serialized artifact; the identity is a recipe/input identity
 not a replacement for that checksum. `report.json` measures preparation and
 records incomplete runs explicitly. Output directories cannot be overwritten.
 
+The optional `publicConstants` flag permits definitions/constructors in the
+catalog. `candidateOnly` lists non-theorem candidates outside held-out owners;
+these are disjoint from `eligible` and `excluded`. They do not affect IDF, mean
+length, or proof training. Held-out public types remain candidates through the
+existing `excluded` policy. Old artifacts omit the new fields and retain their
+theorem-only behavior. The loader validates the three-way catalog partition.
+Current-file supplementation follows the same catalog policy.
+
 No proof body, proof dependency, trace, or external model contributes to schema 1.
 For eligible theorem count N and document frequency df(s), symbol weight is
 `1 + log((N+1)/(df(s)+1))`. Holdouts are removed BEFORE N and df are computed.
@@ -78,6 +86,12 @@ artifact directory. Preparation imports all requested modules so proof values
 can be accessed; it fails if an eligible proof is unavailable or contains an
 admission. It never reads excluded proof values or recursively opens referenced
 definition/helper bodies. Thus dependencies hidden inside helpers are omitted.
+
+The optional `publicLabels` flag broadens direct labels to permitted public
+constants. It never broadens proof owners: the extractor verifies each eligible
+owner is an original theorem before obtaining its value. Definitions can be
+returned as labels without opening their bodies or fitting them as examples.
+This option is independent of the statement catalog and recorded in provenance.
 
 All owner-set checks precede fitting label frequencies. The loader independently
 rejects missing, duplicate, or ineligible examples, mismatched statement identities,

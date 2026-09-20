@@ -17,6 +17,10 @@ structure Artifact where
   eligible : Array String
   excluded : Array String
   provenance : Json
+  /-- An opt-in catalog may contain public definitions and constructors. They
+  are candidates only; eligible theorem owners still determine fitted statistics. -/
+  publicConstants : Bool := false
+  candidateOnly : Array String := #[]
   deriving FromJson, ToJson
 
 structure Index where
@@ -36,6 +40,7 @@ def load (path : System.FilePath) : IO Index := do
   let verbose := (← IO.getEnv "JEVSELECTOR_TRACE_LOAD") == some "1"
   let progress := fun (message : String) => if verbose then IO.eprintln s!"JevSelector: {message}" else pure ()
   let json ← IO.ofExcept (Json.parse (← IO.FS.readFile path))
+  let json := jsonDefaults json [("publicConstants", .bool false), ("candidateOnly", .arr #[])]
   progress "parsed artifact JSON"
   let artifact : Artifact ← IO.ofExcept (fromJson? json)
   progress s!"decoded {artifact.declarations.size} statements"
@@ -66,8 +71,17 @@ def load (path : System.FilePath) : IO Index := do
     unless seen.contains name && !excluded.contains name do
       throw <| IO.userError "JevSelector: invalid training eligibility"
   let eligible : Std.HashSet String := .ofArray artifact.eligible
+  unless eligible.size == artifact.eligible.size do
+    throw <| IO.userError "JevSelector: duplicate eligible theorem example"
+  let candidateOnly : Std.HashSet String := .ofArray artifact.candidateOnly
+  unless candidateOnly.size == artifact.candidateOnly.size &&
+      (artifact.publicConstants || candidateOnly.isEmpty) do
+    throw <| IO.userError "JevSelector: invalid candidate-only catalog policy"
+  for name in candidateOnly do
+    unless seen.contains name && !eligible.contains name && !excluded.contains name do
+      throw <| IO.userError "JevSelector: inconsistent candidate-only eligibility"
   for name in seen do
-    unless eligible.contains name || excluded.contains name do
+    unless eligible.contains name || excluded.contains name || candidateOnly.contains name do
       throw <| IO.userError "JevSelector: catalog entry lacks training eligibility"
   progress "validated training eligibility"
   let mut postings := {}
@@ -187,7 +201,7 @@ def Index.selector (idx : Index) (options : QueryConfig := {}) : Selector := fun
       score / lengthPenalty idx options e.symbols.size, e.typeHash)
   if options.includeCurrentFile then
     for (name, info) in env.constants.map₂ do
-      if !wasOriginallyTheorem env name then continue
+      if !idx.artifact.publicConstants && !wasOriginallyTheorem env name then continue
       let features := (symbols info.type).map Name.toString
       let score := query.foldl (fun acc (s, queryWeight) =>
         if features.contains s then acc + queryWeight * idx.weights.getD s 1 else acc) 0

@@ -44,14 +44,26 @@ def fit(corpus, holdout=None):
     header = next(lines)
     if header.get("kind") != "header":
         raise ValueError("missing extraction header")
-    declarations, entries = {}, []
+    declarations, entries, theorem_names = {}, [], set()
+    public_constants = header.get("publicConstants", False)
+    if not isinstance(public_constants, bool):
+        raise ValueError("invalid catalog policy")
     for row in lines:
         if row["kind"] == "declaration":
             declarations[row["name"]] = row["moduleName"]
-        elif row["kind"] == "theorem":
+        elif row["kind"] in {"theorem", "candidate"}:
+            if row["kind"] == "candidate" and not public_constants:
+                raise ValueError("candidate-only row requires the public-constant catalog")
             entries.append({k: v for k, v in row.items() if k != "kind"})
+            if row["kind"] == "theorem":
+                theorem_names.add(row["name"])
         else:
             raise ValueError("unknown corpus record")
+    names = [e["name"] for e in entries]
+    if len(set(names)) != len(names) or any(n not in declarations for n in names):
+        raise ValueError("duplicate or undeclared catalog candidate")
+    if any(declarations[e["name"]] != e["moduleName"] for e in entries):
+        raise ValueError("inconsistent catalog module ownership")
     holdout = holdout or {"schema": 1, "declarations": [], "modules": []}
     if holdout.get("schema") != 1:
         raise ValueError("unsupported holdout schema")
@@ -65,11 +77,14 @@ def fit(corpus, holdout=None):
     if set(modules) - set(declarations.values()):
         raise ValueError("held-out module has no declarations in the exported scope")
     excluded = {n for n, m in declarations.items() if m in modules or excluded_by(n, owners)}
-    eligible = [e for e in entries if e["name"] not in excluded]
+    eligible = [e for e in entries if e["name"] in theorem_names and e["name"] not in excluded]
+    candidate_only = [e["name"] for e in entries
+                      if e["name"] not in theorem_names and e["name"] not in excluded]
     df = Counter(s for e in eligible for s in set(e["symbols"]))
     n = len(eligible)
     return {"schema": 1, "leanVersion": header["leanVersion"], "declarations": entries,
             "eligible": sorted(e["name"] for e in eligible), "excluded": sorted(excluded),
+            "publicConstants": public_constants, "candidateOnly": sorted(candidate_only),
             "weights": [{"symbol": s, "weight": 1 + math.log((n + 1) / (count + 1))}
                         for s, count in sorted(df.items())]}
 
@@ -170,7 +185,8 @@ def prepare(args):
         source = "import JevSelector.Export\n" + "".join(f"import {m}\n" for m in modules) + "\n#jevselector_export\n"
         (output / "Extract.lean").write_text(source)
         config = output / "export.json"
-        write_json(config, {"output": str(output / "corpus.jsonl"), "scopes": scopes})
+        write_json(config, {"output": str(output / "corpus.jsonl"), "scopes": scopes,
+                            "publicConstants": args.catalog == "public-constants"})
         env = dict(os.environ, JEVSELECTOR_EXPORT_CONFIG=str(config), LEAN_NUM_THREADS=str(args.threads))
         lean_file(project, output / "Extract.lean", output / "extract.log", env, args.timeout,
                   [f"-j{args.threads}", "-M0", "-DmaxHeartbeats=0"])
@@ -178,9 +194,10 @@ def prepare(args):
         with (output / "corpus.jsonl").open() as handle:
             artifact = fit((json.loads(line) for line in handle), holdout)
         if not artifact["declarations"]:
-            raise ValueError("exported scope contains no public theorems")
+            raise ValueError("exported scope contains no permitted public candidates")
         recipe = {"algorithm": "statement-symbol-idf-v1", "modules": modules, "scopes": scopes,
                   "proofInformation": "none", "heldoutStatementStatistics": "excluded",
+                  "catalogPolicy": args.catalog, "trainingOwners": "eligible original theorems only",
                   "statementCatalog": "retained; runtime availability and caller filter required"}
         source_hash = sha(json.dumps(snapshot, sort_keys=True).encode())
         if sha(Path(__file__).read_bytes()) != code_hash:
@@ -195,10 +212,11 @@ def prepare(args):
         (output / "index.sha256").write_text(checksum + "  index.json\n")
         report.update(status="complete", indexSha256=checksum, recipe=recipe,
                       declarations=len(artifact["declarations"]), eligible=len(artifact["eligible"]),
+                      candidateOnly=len(artifact["candidateOnly"]),
                       excluded=len(artifact["excluded"]), symbols=len(artifact["weights"]),
                       artifactBytes=(output / "index.json").stat().st_size,
                       extractionSeconds=extraction_seconds)
-        print(f"Prepared {report['declarations']} theorems ({report['eligible']} eligible): {output / 'index.json'}")
+        print(f"Prepared {report['declarations']} candidates ({report['eligible']} eligible theorem examples): {output / 'index.json'}")
     except BaseException as error:
         report.update(status="incomplete", error=str(error))
         raise
@@ -243,7 +261,8 @@ def dependencies(args):
         (output / "Dependencies.lean").write_text(source)
         config = output / "export.json"
         write_json(config, {"index": str(args.index.absolute()),
-                            "output": str(output / "dependencies.jsonl")})
+                            "output": str(output / "dependencies.jsonl"),
+                            "publicLabels": args.labels == "public-constants"})
         env = dict(os.environ, JEVSELECTOR_DEPENDENCY_CONFIG=str(config),
                    LEAN_NUM_THREADS=str(args.threads))
         lean_file(project, output / "Dependencies.lean", output / "extract.log", env,
@@ -258,8 +277,10 @@ def dependencies(args):
         if source_snapshot(project) != snapshot:
             raise RuntimeError("project sources changed during dependency extraction")
         recipe = {"algorithm": "direct-proof-neighbors-v1", "modules": modules,
-                  "proofInformation": "direct public-theorem references in eligible proof values",
+                  "proofInformation": "direct permitted-constant references in eligible theorem proof values",
+                  "labelPolicy": args.labels,
                   "excludedProofBodies": "never read", "helperProofBodies": "never traversed",
+                  "definitionBodies": "never read",
                   "labelStatistics": "eligible examples only"}
         artifact["provenance"] = {
             "recipe": recipe, "statementIndexSha256": sha(index_bytes),
@@ -369,6 +390,7 @@ def main():
     p.add_argument("--modules", nargs="+", required=True)
     p.add_argument("--scope", action="append", default=[], help="module prefix to include; default: root modules")
     p.add_argument("--exclude", type=Path)
+    p.add_argument("--catalog", choices=["theorems", "public-constants"], default="theorems")
     p.add_argument("--output", type=Path, required=True)
     p.add_argument("--threads", type=int, default=2)
     p.add_argument("--timeout", type=int, default=1800)
@@ -393,6 +415,7 @@ def main():
     p.add_argument("--project", type=Path, default=Path.cwd())
     p.add_argument("--modules", nargs="+", required=True)
     p.add_argument("--index", type=Path, required=True)
+    p.add_argument("--labels", choices=["theorems", "public-constants"], default="theorems")
     p.add_argument("--output", type=Path, required=True)
     p.add_argument("--threads", type=int, default=2)
     p.add_argument("--timeout", type=int, default=1800)

@@ -44,5 +44,31 @@ class Preparation(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "unresolved"):
                 fit(corpus(), {"schema": 1, key: ["Missing"]})
 
+    def test_public_candidates_do_not_change_fitted_statistics(self):
+        original = list(corpus())
+        extended = list(corpus())
+        extended[0] = {**extended[0], "publicConstants": True}
+        extended += [
+            {"kind": "declaration", "name": "Example.definition", "moduleName": "Example"},
+            {"kind": "candidate", "name": "Example.definition", "moduleName": "Example",
+             "typeHash": 0, "symbols": ["NotAFittedFeature"]}]
+        baseline, expanded = fit(original), fit(extended)
+        self.assertEqual(baseline["eligible"], expanded["eligible"])
+        self.assertEqual(baseline["weights"], expanded["weights"])
+        self.assertEqual(expanded["candidateOnly"], ["Example.definition"])
+        self.assertTrue(expanded["publicConstants"])
+        held = fit(extended, {"schema": 1, "declarations": ["Example.definition"]})
+        self.assertEqual(held["candidateOnly"], [])
+        self.assertIn("Example.definition", held["excluded"])
+        self.assertEqual(held["weights"], baseline["weights"])
+        extended[0]["publicConstants"] = False
+        with self.assertRaisesRegex(ValueError, "catalog"):
+            fit(extended)
+
+    def test_duplicate_catalog_entries_rejected(self):
+        rows = list(corpus())
+        with self.assertRaisesRegex(ValueError, "duplicate"):
+            fit(rows + [rows[-1]])
+
 if __name__ == "__main__":
     unittest.main()

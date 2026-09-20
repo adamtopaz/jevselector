@@ -4,6 +4,13 @@ public meta section
 namespace JevSelector
 open Lean Meta
 
+/-- Lean's derived JSON readers do not apply structure-field defaults. Add only
+missing optional keys; present malformed values must still be rejected. -/
+def jsonDefaults (value : Json) (fields : List (String × Json)) : Json :=
+  fields.foldl (fun result (key, fallback) =>
+    if (result.getObjVal? key).isOk then result
+    else result.mergeObj (Json.mkObj [(key, fallback)])) value
+
 def symbols (type : Expr) : Array Name :=
   type.getUsedConstants.qsort (fun a b => a.toString < b.toString)
 

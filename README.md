@@ -130,6 +130,24 @@ jevselector prepare --modules MyLibrary --scope MyLibrary --output artifacts/ful
 jevselector verify artifacts/full
 ```
 
+An experimental opt-in catalog also admits public definitions and constructors:
+
+```sh
+jevselector prepare --modules MyLibrary --catalog public-constants \
+  --exclude holdouts.json --output artifacts/public-catalog
+jevselector dependencies --modules MyLibrary --index artifacts/public-catalog/index.json \
+  --labels public-constants --output artifacts/public-dependencies
+```
+
+The two options are independent. The expanded statement catalog records
+non-theorems as `candidateOnly`: they can be retrieved, but do not contribute to
+fitted statistics or become proof examples. Public labels can include definitions
+directly referenced by eligible theorem proofs. Their bodies are never opened.
+The dependency extractor checks that each eligible owner is an original theorem
+before obtaining its proof value. Default catalogs and labels remain theorem-only.
+The implementation passes preparation and native integration checks; it has no
+measured coverage gain.
+
 `--modules` selects imports to load. Repeat `--scope` to select module-name
 prefixes inside that loaded environment. Without `--scope`, the root modules
 are the prefixes. For Mathlib, use `--modules Mathlib --scope Mathlib` in a
