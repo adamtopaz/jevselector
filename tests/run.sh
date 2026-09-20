@@ -72,6 +72,20 @@ lake env lean ClosingTests.lean
 lake build JevSelector.Structural
 lake env lean StructuralTests.lean
 lake env lean RewriteTests.lean
+lake build GraphSupport
+lake env lean GraphTests.lean
+python - <<'PY'
+import os, signal, subprocess
+job = subprocess.Popen(["lake", "env", "lean", "AsyncGraphTests.lean"], start_new_session=True)
+try:
+    status = job.wait(timeout=30)
+except subprocess.TimeoutExpired:
+    os.killpg(job.pid, signal.SIGKILL)
+    job.wait()
+    raise
+if status:
+    raise SystemExit(status)
+PY
 
 python -m jevselector prepare --modules CatalogFixture --exclude tests/catalog-holdout.json --catalog public-constants --output "$scratch/catalog" "$@"
 python -m jevselector dependencies --modules CatalogFixture --index "$scratch/catalog/index.json" --labels public-constants --output "$scratch/catalog-dependencies" "$@"

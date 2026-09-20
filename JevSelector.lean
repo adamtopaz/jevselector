@@ -8,3 +8,4 @@ public meta import JevSelector.Usage
 public meta import JevSelector.Bayes
 public meta import JevSelector.Closing
 public meta import JevSelector.Structural
+public meta import JevSelector.DependencyGraph

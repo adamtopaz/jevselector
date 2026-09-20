@@ -331,6 +331,16 @@ with different auxiliary names or instance terms. Set `includeCurrentFile := fal
 to exclude these premises entirely. The selector deduplicates and obeys
 `maxSuggestions`. Unavailable later theorems cannot be returned.
 
+## Guided dependency traversal
+
+The experimental `DependencyGraph` supplies signature-only backward/forward
+dependencies and a bounded `guided` selector that decorates any standard CPU
+selector. An injected ranker chooses traversal directions using printed types
+and the goal context. With JevHammer's selector-guidance API, these decisions
+share the proof search's Jev budget. No additional neural model is required.
+See [the graph API and limitations](docs/dependency-graph.md). Proof-quality
+improvement has not yet been measured.
+
 ## Resources, artifacts, and tests
 
 On Linux the CLI automatically establishes a **24 GB, zero-swap cgroup** around
