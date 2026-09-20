@@ -34,3 +34,30 @@ All 384 cost queries succeeded, but no-expansion traversal alone increased the
 base median from 175.64 ms to 676.66 ms, and p95 from 304.21 ms to 2,153.99 ms.
 The next isolated native run must preserve all 384 ordered suggestion arrays
 while measuring the direct-lookup change. No proof trials have begun.
+
+## Completed native Mathlib comparison
+
+All 384 v4 queries completed with **exactly the same ordered suggestions and
+callback/choice payloads** as v3. All repeated rankings remained stable and no
+query failed. Full graph initialization improved from **67.840 to 14.719 s**;
+structural setup from **30.687 to 6.713 s**. The graph still indexes 376,987
+signatures. Costs in median/p95 milliseconds were:
+
+| Mode | Before | After |
+|---|---:|---:|
+| CPU base | 175.64 / 304.21 | 112.41 / 233.24 |
+| No expansion | 676.66 / 2,153.99 | 122.86 / 221.70 |
+| Forward | 782.54 / 2,382.00 | 201.81 / 349.83 |
+| Backward | 684.82 / 2,228.31 | 123.16 / 220.73 |
+
+These are matched native cost measurements on 32 fixed public statement types,
+three repetitions each; no model calls or proof trials. Peak memory was
+4,553,039,872 bytes with no memory events under 16 GB and zero swap. Forward
+expansion still misses the provisional 200 ms p95 target, so future coverage
+results must justify its overhead and actual Jev latency. This optimization
+changes implementation cost, not the ranking recipe or established proof score.
+
+Benchmark evidence: `docs/cpu-selector-profile-graph-v4.json` and per-query
+digests, plus the preserved v3 comparator. The next small proof screen retains
+CPU and both neural-guidance controls under unchanged six-second/three-call
+budgets. Reserved evaluation remains untouched.

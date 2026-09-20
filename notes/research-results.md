@@ -486,3 +486,29 @@ repository's `docs/cpu-selector-bayes-exact-v1.json` and companion trial file.
 The next hypothesis is Jev-guided traversal of signature dependencies through
 the shared search budget, described in `notes/jev-guided-traversal-budget.md`.
 Its current draft has not yet passed native tests or established proof quality.
+
+## Signature graph implementation and cost gate
+
+The graph selector and shared-budget JevHammer API now pass offline regression,
+consumer and harness integration checks. Graph construction reads available
+signatures only, including explicitly unresolved theorem signatures without
+waiting for proof bodies. The selector uses bounded Jev direction choices and
+shares the search's existing call/clock budget. No graph proof-quality result
+has been collected yet.
+
+Native full-Mathlib cost profiling exposed a generic signature-filtering cost:
+the imported module-name array was rebuilt per declaration. Selector `d6f4e25`
+uses direct module lookup. All **384 ordered query results stayed identical**
+while full graph construction fell **67.840 → 14.719 seconds**, structural setup
+**30.687 → 6.713 seconds**, and no-expansion median query cost **676.66 → 122.86 ms**.
+Forward-expansion median/p95 is **201.81/349.83 ms**, including the CPU base and
+excluding real Jev latency. All queries passed; peak was **4.55 GB**, no memory
+events, zero swap. This is a performance improvement, not evidence of better
+proof coverage. `notes/signature-module-lookup.md` records the full comparison.
+
+Two initial diagnostic launchers omitted Lake's native plugin setup. Their
+timeout/partial outcomes remain published but are excluded from production-cost
+comparisons. The successful v3/v4 comparisons use the same native launch helper
+as the proof harness. The strongest completed broad proof result remains CPU
+63/134 versus neural 63/134 and neural/conclusion fusion 64/134. The significant
+coverage-improvement goal remains open.
