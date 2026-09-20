@@ -29,6 +29,11 @@ run_cmd liftTermElabM do
     return #[{ name := `SelectorFixture.held, score := 1.0 }]
   discard <| fuse #[mutating, observes] {} goal.mvarId! {}
   if ← goal.mvarId!.isAssigned then throwError "fusion modified the caller goal"
+  discard <| fuse #[first, second] {} goal.mvarId! { filter := fun _ => do
+    if ← goal.mvarId!.isAssigned then throwError "fusion filter state leaked"
+    goal.mvarId!.assign (mkConst ``True.intro)
+    return true }
+  if ← goal.mvarId!.isAssigned then throwError "fusion filter modified caller goal"
 
 run_cmd liftTermElabM do
   let some path ← IO.getEnv "JEVSELECTOR_TEST_INDEX" | throwError "missing fixture index"
