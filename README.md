@@ -13,17 +13,18 @@ replacement for the strongest neural-selector/JevHammer pipeline**.
 The library also supplies a configurable Sine Qua Non baseline using Lean's
 built-in retrieval algorithm, without any external preparation or service.
 
-The `research/cpu-selector` branch also contains target-weighted retrieval,
+The library also contains target-weighted retrieval,
 structural conclusion matching, reciprocal-rank fusion and additional experimental
 selectors. See the [research protocol](notes/cpu-selector-research.md)
 and [first experiment](notes/experiment-01.md).
-To run the experimental commands below, pin both the Lake dependency and Python
-package to the same research commit (`git+https://github.com/adamtopaz/jevselector@COMMIT`
-for pip). The `main` installation example is for the released baseline.
+For reproducibility, pin both the Lake dependency and Python package to the same
+commit (`git+https://github.com/adamtopaz/jevselector@COMMIT` for pip).
+All commands below are available on `main`; experimental selectors retain their
+documented evaluation status.
 
 ## Benchmark evidence
 
-The [1,024-goal confirmation](https://github.com/adamtopaz/jevhammer_benchmark/blob/research/cpu-selector/docs/full-leanhammer-confirmation-v1.md)
+The [1,024-goal confirmation](https://github.com/adamtopaz/jevhammer_benchmark/blob/main/docs/full-leanhammer-confirmation-v1.md)
 measured target-weighted public-constant sparse retrieval fused with structural
 conclusion matching, inside JevHammer with Jev proof-state guidance. It solved
 **450/1,024 goals (43.95%)**, compared with **469 (45.80%)** for neural/conclusion
@@ -37,7 +38,7 @@ The CPU artifact took 92.16 seconds to prepare with all evaluation owners
 excluded. Aggregate CPU retrieval was 190.369 seconds versus 577.650 for the
 neural/conclusion arm; total goal times differed less. The selector needs no
 neural service at query time; JevHammer still calls remote Jev for search guidance.
-The [reproduction guide](https://github.com/adamtopaz/jevhammer_benchmark/blob/research/cpu-selector/docs/reproducing-confirmation.md)
+The [reproduction guide](https://github.com/adamtopaz/jevhammer_benchmark/blob/main/docs/reproducing-confirmation.md)
 pins the exact preparation, fusion and tactic settings. This does not establish
 CPU-selector superiority over the neural alternative.
 
@@ -87,7 +88,7 @@ No scores from different selectors are compared. See
 
 ## Experimental proof-neighbor selection
 
-The research branch has an optional CPU model that transfers dependencies from
+The library has an optional CPU model that transfers dependencies from
 similar eligible theorem statements. It is under evaluation; it is not yet a
 demonstrated improvement over the neural reference. Prepare the statement index
 with the desired exclusions first, then create its dependency companion:
@@ -120,7 +121,7 @@ for the fixed initial ranking and its limitations.
 
 ## Experimental sparse premise-usage model
 
-The research branch also has a candidate that fits symbol profiles from **all**
+The library also has a candidate that fits symbol profiles from **all**
 eligible proof examples using each premise. This is a smoothed sparse language
 model, built by CPU counting with no neural encoder or Jev call. It reuses the
 existing excluded artifacts; no proof extraction is repeated:
@@ -270,7 +271,7 @@ named selector for the `jev_hammer ... using mySelector` tactic. See the
 [benchmark integration](https://github.com/adamtopaz/jevhammer_benchmark/tree/main/integrations/selector)
 for a complete adapter with warmup and holdout admission.
 
-On the research branch, `idx.targetSelector` emphasizes symbols in the target;
+`idx.targetSelector` emphasizes symbols in the target;
 `idx.ensembleSelector {}` combines that ranking with the original sparse ranking.
 Both reuse the same index and standard selector interface. `JevSelector.fuse`
 also accepts other selector arrays. Constituent numeric scores need not be
@@ -309,7 +310,7 @@ selectors remain responsible for their own access behavior. CPU profiles accept 
 `--method structural-target`; `structuralInitMs` records creation plus fixed warmup
 separately from artifact loading and query time. The profile's statement index is
 used to choose repeatable query types; pure structural retrieval does not fit it.
-Native validation and full-Mathlib timing profiles pass on the research branch.
+Native validation and full-Mathlib timing profiles pass.
 The replayed 134-location development comparison measured 63 successes for the
 sparse/structural fusion, 57 for sparse, 63 for neural, and 64 for neural/structural,
 all with Jev proof-state guidance. Fusion improves the CPU baseline but has not
