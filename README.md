@@ -13,13 +13,33 @@ replacement for the strongest neural-selector/JevHammer pipeline**.
 The library also supplies a configurable Sine Qua Non baseline using Lean's
 built-in retrieval algorithm, without any external preparation or service.
 
-The `research/cpu-selector` branch also contains experimental target-weighted
-retrieval and reciprocal-rank fusion. These are candidates under evaluation,
-not demonstrated improvements. See the [research protocol](notes/cpu-selector-research.md)
+The `research/cpu-selector` branch also contains target-weighted retrieval,
+structural conclusion matching, reciprocal-rank fusion and additional experimental
+selectors. See the [research protocol](notes/cpu-selector-research.md)
 and [first experiment](notes/experiment-01.md).
 To run the experimental commands below, pin both the Lake dependency and Python
 package to the same research commit (`git+https://github.com/adamtopaz/jevselector@COMMIT`
 for pip). The `main` installation example is for the released baseline.
+
+## Benchmark evidence
+
+The [1,024-goal confirmation](https://github.com/adamtopaz/jevhammer_benchmark/blob/research/cpu-selector/docs/full-leanhammer-confirmation-v1.md)
+measured target-weighted public-constant sparse retrieval fused with structural
+conclusion matching, inside JevHammer with Jev proof-state guidance. It solved
+**450/1,024 goals (43.95%)**, compared with **469 (45.80%)** for neural/conclusion
+JevHammer and **372 (36.33%)** for full LeanHammer under the same six-second,
+16 GB limits. All counted proofs independently replayed. CPU JevHammer exceeded
+full LeanHammer by 7.62 percentage points (95% module-bootstrap interval
++5.34 to +9.91), while neural JevHammer still scored higher than CPU JevHammer.
+These are complete tactic results, not standalone selector accuracy.
+
+The CPU artifact took 92.16 seconds to prepare with all evaluation owners
+excluded. Aggregate CPU retrieval was 190.369 seconds versus 577.650 for the
+neural/conclusion arm; total goal times differed less. The selector needs no
+neural service at query time; JevHammer still calls remote Jev for search guidance.
+The [reproduction guide](https://github.com/adamtopaz/jevhammer_benchmark/blob/research/cpu-selector/docs/reproducing-confirmation.md)
+pins the exact preparation, fusion and tactic settings. This does not establish
+CPU-selector superiority over the neural alternative.
 
 ## Install
 
@@ -128,7 +148,8 @@ and a weighted example matching each eligible theorem to its own statement.
 The statement prior preserves a premise's own features even when few proofs use
 it. Held-out declarations and candidate-only definitions never supply training
 examples or statement priors, although dependencies can still name them as labels.
-There is no measured proof-coverage result for this candidate yet.
+The exposed development screen found no gain over the CPU control; see
+[Bayes experiment results](notes/experiment-10-design.md).
 
 ```sh
 jevselector bayes --index artifacts/heldout/index.json \
